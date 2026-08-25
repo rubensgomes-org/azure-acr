@@ -20,9 +20,6 @@ could be handed over green.
 - [ ] Regenerate the lock files once the dependencies above have landed:
       `./gradlew :app:dependencies --write-locks`, then commit
       `app/gradle.lockfile` and `app/buildscript-gradle.lockfile`.
-- [ ] Create the SonarCloud project `rubensgomes-org_azure-acr` in the
-      `rubensgomes-org` organization. Until it exists, `build-verify.yml`
-      fails at `:app:sonar` because `sonar.qualitygate.wait=true`.
 
 ## Notes
 
