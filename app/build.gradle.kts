@@ -673,7 +673,7 @@ sonar {
         // SONAR_TOKEN must be defined as an environment variable
         property("sonar.projectKey", sonarKey)
         property("sonar.projectName", sonarName)
-        property("sonar.rojectVersion", project.version.toString())
+        property("sonar.projectVersion", project.version.toString())
         property("sonar.organization", sonarOrg)
         property("sonar.host.url", sonarUrl)
         property("sonar.qualitygate.wait", sonarWait)
