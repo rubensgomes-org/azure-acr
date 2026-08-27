@@ -8,8 +8,15 @@
 # Continuous verification for the azure-acr project.
 #
 # Runs the same gate a developer runs locally -- compile, test, check, sonar --
-# on every push to "main", through the committed Gradle wrapper so CI and a
-# workstation execute byte-identical Gradle.
+# through the committed Gradle wrapper so CI and a workstation execute
+# byte-identical Gradle.
+#
+# MANUALLY TRIGGERED ONLY. It used to run on every push to "main", which meant
+# a release paid for it twice: "./gradlew release" already runs
+# runBuildTasks -> build -> check, and the release plugin's two pushes to main
+# each started a run of this workflow on top of that. Dispatch it when a
+# verdict is actually wanted -- notably for the SonarCloud analysis, which the
+# release build does NOT perform ("sonar" is not part of "build").
 #
 # Two local composite actions do the work: .github/actions/setup-java-gradle
 # installs the JDK and configures Gradle, .github/actions/build runs the
@@ -24,12 +31,9 @@
 name: build-verify
 
 on:
-  # A "branches:" filter matches only refs/heads/*, so release tags do NOT
-  # start a run. The two commits the release plugin pushes to main DO; see the
-  # note at the bottom of this file.
-  push:
-    branches:
-      - main
+  # Manual only -- nothing here starts on its own. Actions always dispatches
+  # from the default branch's copy of this file.
+  workflow_dispatch:
 
 # Least privilege: the per-run token is used only by actions/checkout.
 #
@@ -52,12 +56,6 @@ jobs:
   build-verify:
     name: build-verify
     runs-on: ubuntu-latest
-
-    # Skip the release plugin's version-bump commit -- see the note at the
-    # bottom of this file. Matches the LONG phrase on purpose: the plugin's
-    # other commit ("pre tag commit") also starts with "[Gradle Release
-    # Plugin]", and that one must still run.
-    if: ${{ !contains(github.event.head_commit.message, '[Gradle Release Plugin] - new version commit') }}
 
     # sonar.qualitygate.wait=true makes the last step BLOCK on SonarCloud. If
     # that queue backs up the step waits rather than fails, so a ceiling keeps
@@ -144,24 +142,15 @@ jobs:
           # why sonar runs last.
 
 # ---------------------------------------------------------------------------
-# NOTE -- release-plugin re-triggering
+# NOTE -- what a release does instead
 #
-# "net.researchgate.release" pushes two commits to main per release, each its
-# own push, so each release would otherwise cost two full runs:
+# "net.researchgate.release" pushes two commits to main per release:
 #
-#   [Gradle Release Plugin] - pre tag commit:  '0.0.2'.          <- RUNS
-#   [Gradle Release Plugin] - new version commit: '0.0.3-SNAPSHOT'.  <- SKIPPED
+#   [Gradle Release Plugin] - pre tag commit:  '0.0.2'.
+#   [Gradle Release Plugin] - new version commit: '0.0.3-SNAPSHOT'.
 #
-# They run because release.yml pushes with a PAT; the automatic per-run token
-# would not trigger this workflow at all.
-#
-# Only the second is skipped. The first is the released code, and it is the
-# ONLY SonarCloud analysis it ever gets -- "./gradlew release" runs
-# runBuildTasks -> build -> check, and "sonar" is not part of "build". The
-# second changes nothing but the version string in app/gradle.properties.
-#
-# The release TAG never triggers a run: "branches:" matches only refs/heads/*.
-#
-# If the plugin ever reworded its commits the filter stops matching and the job
-# just runs, which is the harmless direction.
+# Neither starts a run any more, and neither does the release tag. The release
+# itself compiles and checks the code ("./gradlew release" runs runBuildTasks
+# -> build -> check), so the only thing lost is the SonarCloud analysis -- run
+# this workflow by hand on the released commit when that analysis is wanted.
 # ---------------------------------------------------------------------------
