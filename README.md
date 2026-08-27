@@ -118,8 +118,9 @@ quietly resolving whatever is newest. Details in
 | `./gradlew publishToMavenLocal`             | Install to `~/.m2`                                   |
 | `./gradlew release`                         | Tag and bump the version (prefer the workflow)       |
 | `./gradlew :app:dependencies --write-locks` | Regenerate the `:app` dependency lock files          |
-| `gh workflow run release.yml`               | Cut a release from CI (manual trigger)               |
-| `gh workflow run acr-build-deploy.yml`      | Build and push the image to ACR (manual trigger)     |
+| `gh workflow run build-verify.yml`          | Run the build + Sonar gate in CI                     |
+| `gh workflow run release.yml`               | Cut a release from CI                                |
+| `gh workflow run acr-build-deploy.yml`      | Build and push the image to ACR                      |
 | `docker compose up --build -d`              | Build and run the image — `./gradlew build` first    |
 | `docker compose down`                       | Stop and remove the container                        |
 
@@ -138,13 +139,11 @@ azure-acr/
 ├── llms.txt                   # machine-readable project index
 ├── misc/tasks/                # plans and outstanding work
 ├── .github/
-│   ├── actions/
-│   │   ├── setup-java-gradle/ # composite: setup-java + setup-gradle
-│   │   └── build/             # composite: compile, test, check, assemble
-│   └── workflows/
-│       ├── acr-build-deploy.yml  # manual: build the jar, then az acr build
-│       ├── build-verify.yml      # CI: the build action + sonar, on push to main
-│       └── release.yml           # manual: ./gradlew release
+│   └── workflows/             # stubs; bodies live in rubensgomes-org/azure-workflows
+│       ├── acr-build-deploy.yml  # build the jar, then az acr build
+│       ├── acr-repo-delete.yml   # DESTRUCTIVE: delete an ACR repository
+│       ├── build-verify.yml      # build + sonar
+│       └── release.yml           # ./gradlew release
 └── app/
     ├── build.gradle.kts       # the entire build
     ├── gradle.lockfile        # lock state: application dependencies
