@@ -1,0 +1,298 @@
+# SPDX-License-Identifier: MIT
+
+# ---------------------------------------------------------------------------
+# Builds the Spring Boot jar on the runner, then images it with an ACR Quick
+# Task and pushes it.
+#
+# MANUALLY TRIGGERED ONLY: it writes an image into a shared registry.
+#
+# THE REGISTRY IS ASSUMED TO EXIST. This workflow provisions nothing. It targets
+# "rubensdevacr" by default, overridable per run via the registry_name input,
+# and fails early if that registry is not there. Creating it stays in azure-iac.
+#
+# WHAT IT PUBLISHES
+#   <environment>/<artifactId>:<tag>, e.g. dev/azure-acr:0.0.3-SNAPSHOT.
+#   environment and tag are inputs; artifactId comes from app/gradle.properties
+#   and tag defaults to the version the Gradle build writes into ".env".
+#
+# WHY "az acr build" AND NOT docker build + push
+#   The image is assembled server-side, so the runner needs no Docker daemon,
+#   buildx or registry login -- it only uploads the build context. The context
+#   is small because the Dockerfile just copies the jar: see the "!" line in
+#   .dockerignore, which is what lets that one jar through.
+#
+# @author Rubens Gomes
+# ---------------------------------------------------------------------------
+name: build-deploy-image
+
+on:
+  # Manual only. Actions always dispatches from the default branch's copy.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Image namespace, used as <environment>/<artifactId>:<tag>.'
+        required: false
+        default: dev
+        type: string
+      tag:
+        description: 'Image tag. Empty defaults to the application version (APP_VERSION in .env).'
+        required: false
+        type: string
+      registry_name:
+        description: 'Name of the EXISTING Azure Container Registry to push to (not the login server).'
+        required: false
+        default: rubensdevacr
+        type: string
+
+# Reads this repository and nothing else. The push authenticates with the Azure
+# service principal, not the per-run token, so no "packages: write" is wanted.
+permissions:
+  contents: read
+
+# Never build two images at once -- they would race to push the same tag.
+concurrency:
+  group: build-deploy-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # Carriers for the credentials the Gradle build reads as GITHUB_USER and
+      # GITHUB_TOKEN; Actions reserves the "GITHUB_" prefix. They are handed to
+      # the build action below, not to the image build -- the Dockerfile no
+      # longer takes them.
+      #
+      # Mandatory: settings.gradle.kts resolves the shared version catalog from
+      # GitHub Packages while EVALUATING SETTINGS, so without them the build
+      # fails with an HTTP 401 before any Gradle task runs.
+      PACKAGES_USER: ${{ github.actor }}
+      PACKAGES_TOKEN: ${{ secrets.RUBENS_PAT_TOKEN }}
+
+      # Assumed to exist. Its login server is read back from Azure by the verify
+      # step rather than assumed to be "<name>.azurecr.io".
+      ACR_NAME: ${{ inputs.registry_name }}
+
+      # Same flags the other workflows use: quieten the info-level logging in
+      # gradle.properties and pin the toolchain to the JDK the setup action
+      # installs. See build-verify.yml for the full rationale.
+      GRADLE_ARGS: >-
+        --console=plain
+        -Dorg.gradle.logging.level=lifecycle
+        -Porg.gradle.java.installations.auto-download=false
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # -------------------------- azure --------------------------
+      # Plain "az login" rather than azure/login@v2: the org secrets are four
+      # separate values, and v2 wants them pre-assembled into one "creds" JSON.
+      #
+      # Sign-in and the registry check run BEFORE the Gradle build so a bad
+      # registry_name fails in seconds instead of after a full build.
+      - name: Sign in to Azure
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Sign in to Azure"
+          echo "=============================================================="
+          set -euo pipefail
+
+          # Name the missing secret rather than let the az CLI fail opaquely.
+          # Only the NAME is ever printed.
+          missing=0
+          for v in AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!v:-}" ]; then
+              echo "Missing required secret: ${v}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Check the organization Actions secrets on rubensgomes-org and"
+            echo "confirm they are shared with this repository."
+            exit 1
+          fi
+
+          az login --service-principal \
+            --username "$AZURE_CLIENT_ID" \
+            --password "$AZURE_CLIENT_SECRET" \
+            --tenant   "$AZURE_TENANT_ID" \
+            --output none
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          echo "Signed in. Target registry: ${ACR_NAME}"
+
+      # -------------------------- verify --------------------------
+      # Nothing here provisions the registry, so prove it exists before spending
+      # a build on it. "az acr show" is the check and the lookup at once: it
+      # fails when the registry is absent and returns the real login server when
+      # it is not.
+      - name: Verify the registry exists
+        id: registry
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Verify the registry exists"
+          echo " az acr show --name ${ACR_NAME}"
+          echo "=============================================================="
+          set -euo pipefail
+
+          # Captured, not left to "set -e", so the cause can be explained.
+          # az's own stderr is deliberately NOT suppressed: a network or token
+          # failure must stay distinguishable from a missing registry.
+          if ! login_server="$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)"; then
+            echo "No Azure Container Registry named '${ACR_NAME}' is visible to" >&2
+            echo "this service principal in the signed-in subscription." >&2
+            echo "" >&2
+            echo "This workflow does not create registries. Pass an existing" >&2
+            echo "name via the registry_name input, or provision it from the" >&2
+            echo "azure-iac repository first." >&2
+            echo "" >&2
+            echo "Registries this principal CAN see:" >&2
+            az acr list --query '[].name' -o tsv >&2 || echo "  (none)" >&2
+            exit 1
+          fi
+
+          if [ -z "$login_server" ]; then
+            echo "Registry '${ACR_NAME}' returned an empty loginServer." >&2
+            exit 1
+          fi
+
+          echo "login_server=${login_server}" >> "$GITHUB_OUTPUT"
+          echo "Registry ${ACR_NAME} exists; login server is ${login_server}"
+
+      # -------------------------- gradle --------------------------
+      # The same two actions build-verify.yml uses. The build action's assemble
+      # step is what produces app/build/libs/azure-acr-spring-boot.jar for the
+      # Dockerfile and the ".env" the next step reads.
+      #
+      # Both are referenced by PATH, so they are read from the workspace the
+      # checkout above populated -- which is why neither can precede it.
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Build
+        uses: ./.github/actions/build
+        with:
+          packages-user: ${{ env.PACKAGES_USER }}
+          packages-token: ${{ env.PACKAGES_TOKEN }}
+          gradle-args: ${{ env.GRADLE_ARGS }}
+
+      # -------------------------- coordinates --------------------------
+      # Decides the image reference once, so the build and report steps cannot
+      # disagree. Inputs arrive through env, not "${{ }}" interpolation: that is
+      # textual substitution done before bash sees the line, so a quote in a
+      # value would be extra shell rather than a bad tag.
+      - name: Resolve the image coordinates
+        id: image
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Resolve the image coordinates"
+          echo "=============================================================="
+          set -euo pipefail
+
+          # Written by generateDotEnv during the assemble step above.
+          app_version="$(sed -n 's/^APP_VERSION=//p' .env 2>/dev/null || true)"
+          if [ -z "$app_version" ]; then
+            echo "APP_VERSION not found in .env." >&2
+            echo "It is written by the Gradle build, so this means the build" >&2
+            echo "step did not run or did not reach generateDotEnv." >&2
+            exit 1
+          fi
+
+          artifact_id="$(sed -n 's/^artifactId=//p' app/gradle.properties)"
+          if [ -z "$artifact_id" ]; then
+            echo "artifactId not found in app/gradle.properties" >&2
+            exit 1
+          fi
+
+          if [ -z "${ENVIRONMENT:-}" ]; then
+            echo "The environment input resolved to empty." >&2
+            exit 1
+          fi
+
+          # The tag input wins; otherwise the application's own version.
+          tag="${INPUT_TAG:-$app_version}"
+
+          # APP_VERSION stays the real application version even when the image
+          # is tagged something else -- it only feeds the image version label.
+          echo "image=${ENVIRONMENT}/${artifact_id}:${tag}" >> "$GITHUB_OUTPUT"
+          echo "app_version=${app_version}"                >> "$GITHUB_OUTPUT"
+          echo "Building ${ENVIRONMENT}/${artifact_id}:${tag} (version ${app_version})"
+
+      # -------------------------- image --------------------------
+      # "az acr build" pushes on success, so there is no separate push step.
+      #
+      # No --secret-build-arg: the Dockerfile copies a prebuilt jar and declares
+      # no GitHub Packages args. APP_VERSION is ordinary; it only feeds the
+      # org.opencontainers.image.version label.
+      - name: Build and push the image with az acr build
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          APP_VERSION: ${{ steps.image.outputs.app_version }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Build and push the image with az acr build"
+          echo " az acr build --registry ${ACR_NAME} --image ${IMAGE}"
+          echo "=============================================================="
+          set -euo pipefail
+
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "$IMAGE" \
+            --build-arg APP_VERSION="$APP_VERSION" \
+            .
+
+      # -------------------------- confirm --------------------------
+      # "az acr build" reporting success only proves the build ran. Read the
+      # manifest back so a push that did not land fails the run here.
+      - name: Verify the image exists in the registry
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Verify the image exists in the registry"
+          echo " az acr repository show --name ${ACR_NAME} --image ${IMAGE}"
+          echo "=============================================================="
+          set -euo pipefail
+
+          # az's own stderr is kept: a network or token failure must stay
+          # distinguishable from a genuinely missing tag.
+          if ! digest="$(az acr repository show --name "$ACR_NAME" --image "$IMAGE" --query digest -o tsv)"; then
+            echo "Image '${IMAGE}' is not in registry '${ACR_NAME}'." >&2
+            echo "The build step reported success, so the push did not land." >&2
+            echo "" >&2
+            echo "Tags currently in ${IMAGE%%:*}:" >&2
+            az acr repository show-tags --name "$ACR_NAME" --repository "${IMAGE%%:*}" -o tsv >&2 \
+              || echo "  (repository does not exist)" >&2
+            exit 1
+          fi
+
+          echo "Present in ${ACR_NAME}. Digest: ${digest}"
+
+      # Ends the log with the exact reference to pull.
+      - name: Report the published image
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          ACR_LOGIN_SERVER: ${{ steps.registry.outputs.login_server }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Report the published image"
+          echo "=============================================================="
+          echo "Published:"
+          echo "  ${ACR_LOGIN_SERVER}/${IMAGE}"

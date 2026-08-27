@@ -116,9 +116,10 @@ quietly resolving whatever is newest. Details in
 | `./gradlew build`                           | Format check + tests + coverage gate + all artifacts |
 | `./gradlew spotlessApply`                   | Reformat sources                                     |
 | `./gradlew publishToMavenLocal`             | Install to `~/.m2`                                   |
-| `./gradlew release`                         | Tag, merge to `release`, bump (prefer the workflow)  |
+| `./gradlew release`                         | Tag and bump the version (prefer the workflow)       |
 | `./gradlew :app:dependencies --write-locks` | Regenerate the `:app` dependency lock files          |
 | `gh workflow run release.yml`               | Cut a release from CI (manual trigger)               |
+| `gh workflow run acr-build-deploy.yml`      | Build and push the image to ACR (manual trigger)     |
 | `docker compose up --build -d`              | Build and run the image — `./gradlew build` first    |
 | `docker compose down`                       | Stop and remove the container                        |
 
@@ -136,10 +137,14 @@ azure-acr/
 ├── BUILD.md                   # build documentation
 ├── llms.txt                   # machine-readable project index
 ├── misc/tasks/                # plans and outstanding work
-├── .github/workflows/
-│   ├── acr-build-deploy.yml   # manual: az acr build, push to Azure
-│   ├── build-verify.yml       # CI: compile, test, check, sonar on push to main
-│   └── release.yml            # manual: ./gradlew release
+├── .github/
+│   ├── actions/
+│   │   ├── setup-java-gradle/ # composite: setup-java + setup-gradle
+│   │   └── build/             # composite: compile, test, check, assemble
+│   └── workflows/
+│       ├── acr-build-deploy.yml  # manual: build the jar, then az acr build
+│       ├── build-verify.yml      # CI: the build action + sonar, on push to main
+│       └── release.yml           # manual: ./gradlew release
 └── app/
     ├── build.gradle.kts       # the entire build
     ├── gradle.lockfile        # lock state: application dependencies

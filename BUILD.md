@@ -35,7 +35,7 @@ does, and when it runs.
 | `./gradlew dockerBuild`                     | Build the Docker image (requires a running daemon)     |
 | `docker compose up --build -d`              | Build and run the container                            |
 | `docker compose down`                       | Stop and remove the container                          |
-| `./gradlew release`                         | Cut a release (prefer `gh workflow run release.yml`)   |
+| `./gradlew release`                         | Tag a release and bump (prefer `gh workflow run release.yml`) |
 
 Always use the wrapper (`./gradlew`), never a locally installed `gradle`. The
 wrapper pins **Gradle 9.7.1**.
@@ -697,7 +697,7 @@ verify before uploading.
 ./gradlew release
 ```
 
-Strips `-SNAPSHOT`, tags, merges to the `release` branch, bumps to the next
+Strips `-SNAPSHOT`, tags, bumps to the next
 snapshot, and pushes.
 
 **Preconditions:**
@@ -735,7 +735,7 @@ repository. That difference drives everything else about it:
 
 | Setting                                              | Why                                                                                                                                            |
 |------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| `permissions: contents: write`                       | It pushes two commits, a tag, and the `release` branch                                                                                         |
+| `permissions: contents: write`                       | It pushes two commits and a tag. No `release` branch — `pushReleaseVersionBranch` is deliberately unset, so a release is identified by its tag |
 | `ref: main`, `fetch-depth: 0` on checkout            | `requireBranch` is `main`, and the plugin diffs local against remote — a shallow or detached checkout breaks the branch check and tag creation |
 | `token: ${{ secrets.RUBENS_PAT_TOKEN }}` on checkout | The token checkout persists is what the plugin's own `git push` uses. It must be a PAT — see below                                             |
 | `concurrency`, `cancel-in-progress: false`           | Two releases would race to tag from the same starting point, and interrupting a half-finished release leaves tags and commits inconsistent     |
@@ -792,44 +792,66 @@ Cloning this project as a template means replacing `sonar.organization`,
 
 ## Continuous integration
 
-Two workflows, with opposite postures:
+Three workflows, with different postures:
 
-| Workflow           | Trigger                      | Writes to the repo?                            |
-|--------------------|------------------------------|------------------------------------------------|
-| `build-verify.yml` | every push to `main`         | No — `permissions: contents: read`             |
-| `release.yml`      | manual (`workflow_dispatch`) | **Yes** — commits, a tag, the `release` branch |
+| Workflow               | Trigger                      | Writes to the repo?                |
+|------------------------|------------------------------|------------------------------------|
+| `build-verify.yml`     | every push to `main`         | No — `permissions: contents: read` |
+| `release.yml`          | manual (`workflow_dispatch`) | **Yes** — two commits and a tag    |
+| `acr-build-deploy.yml` | manual (`workflow_dispatch`) | No — only an image, to Azure       |
 
 `release.yml` is covered under [Releasing from CI](#releasing-from-ci). The rest
 of this section is about `build-verify.yml`.
 
-Both share the same three setup steps — checkout, `setup-java` with
-`distribution: microsoft`, `setup-gradle` — and the same `GRADLE_ARGS`, and both
-carry GitHub Packages credentials in `PACKAGES_USER` / `PACKAGES_TOKEN` because
-the `GITHUB_` prefix is reserved. Change one and consider whether the other
-needs the same change.
+### Shared composite actions
+
+The setup and build steps live in two local composite actions under
+`.github/actions/`, so a change lands in one place instead of three:
+
+| Action              | Does                                                    | Used by                      |
+|---------------------|---------------------------------------------------------|------------------------------|
+| `setup-java-gradle` | `setup-java` (`microsoft` 25) + `setup-gradle`           | all three workflows          |
+| `build`             | `compile` → `test` → `check` → `assemble`                | build-verify, acr-build-deploy |
+
+Both are referenced by path (`uses: ./.github/actions/…`), so they are read from
+the workspace and **must come after `actions/checkout`**. Secrets are not
+readable inside a composite action, so `build` takes the Packages credentials as
+inputs. `release.yml` reuses only `setup-java-gradle` — `./gradlew release` runs
+the build itself via `runBuildTasks`.
+
+All three workflows carry the same `GRADLE_ARGS` and the same GitHub Packages
+credentials in `PACKAGES_USER` / `PACKAGES_TOKEN`, because the `GITHUB_` prefix
+is reserved.
 
 ### `build-verify.yml`
 
 It runs the same gate on every push to `main`, through the committed wrapper, so
 CI and a workstation execute identical Gradle.
 
-One job, `build-verify`, on `ubuntu-latest`. Three setup steps, then the four
-verification phases:
+One job, `build-verify`, on `ubuntu-latest`: checkout, the two composite
+actions, then `sonar`. That renders as five phases:
 
-| Step      | Command                         | What it adds                                         |
-|-----------|---------------------------------|------------------------------------------------------|
-| `compile` | `:app:classes :app:testClasses` | `processResources`, `compileJava`, `compileTestJava` |
-| `test`    | `:app:test`                     | `test`, `jacocoTestReport`                           |
-| `check`   | `:app:check`                    | `spotless*Check`, `jacocoTestCoverageVerification`   |
-| `sonar`   | `:app:sonar`                    | `sonarResolver`, `sonar`                             |
+| Step       | Command                         | What it adds                                         | Where     |
+|------------|---------------------------------|------------------------------------------------------|-----------|
+| `compile`  | `:app:classes :app:testClasses` | `processResources`, `compileJava`, `compileTestJava` | `build`   |
+| `test`     | `:app:test`                     | `test`, `jacocoTestReport`                           | `build`   |
+| `check`    | `:app:check`                    | `spotless*Check`, `jacocoTestCoverageVerification`   | `build`   |
+| `assemble` | `:app:build`                    | `bootJar`, `applicationJar`, `generateDotEnv`        | `build`   |
+| `sonar`    | `:app:sonar`                    | `sonarResolver`, `sonar`                             | workflow  |
 
-### Why four invocations instead of one
+`assemble` exists because `applicationJar` and `generateDotEnv` hang off
+`tasks.build`, **not** off `check` — `:app:check` reaches neither. Without it
+there is no `azure-acr-spring-boot.jar` for the Dockerfile and no `.env`.
+`build-verify` does not need either, but `acr-build-deploy.yml` does, and both
+call the same action.
 
-`./gradlew :app:sonar` alone would run everything, but splitting it gives four
+### Why five invocations instead of one
+
+`./gradlew :app:sonar` alone would run almost everything, but splitting it gives
 independently red/green steps, so a failure names a phase instead of burying it
-in one 23-task log. Up-to-date state persists in `app/.gradle`, so each step
-finds the previous step's work `UP-TO-DATE` and nothing re-runs — the only cost
-is configuration time ×4, since the configuration cache is off.
+in one long log. Up-to-date state persists in `app/.gradle`, so each step finds
+the previous step's work `UP-TO-DATE` and nothing re-runs — the only cost is
+configuration time per step, since the configuration cache is off.
 
 ### Required secrets
 
@@ -848,31 +870,36 @@ own shell. They are needed by **every** invocation, not just the first, because
 
 ### Toolchain and the vendor pin
 
-The workflow installs the JDK with `actions/setup-java`, `distribution:
+The `setup-java-gradle` action installs the JDK, defaulting to `distribution:
 microsoft`, `java-version: 25` — matching `JvmVendorSpec.MICROSOFT` so Gradle
-reuses the JVM it is already running on. It then passes
+reuses the JVM it is already running on. The workflows then pass
 `-Porg.gradle.java.installations.auto-download=false`, exactly as the Dockerfile
 does, so a drift between the vendor pin and the runner distribution fails in
 seconds with "No matching toolchains" instead of silently downloading a second
 JDK on every run. Expect the runner's preinstalled Temurin JDKs to appear in
 that error as detected-but-rejected — that is the pin working.
 
-Change the vendor in `app/build.gradle.kts` and you must change **three** places
-in step: the toolchain block, the Dockerfile `FROM`, and `distribution:` here.
+Change the vendor in `app/build.gradle.kts` and you must change the
+`java-distribution` default in `.github/actions/setup-java-gradle/action.yml` to
+match. Those are the only two call sites — the Dockerfile is an ordinary JRE
+base now and imposes no vendor constraint.
 
 ### Other details worth knowing
 
 - **`fetch-depth: 0`.** SonarCloud derives New Code detection, blame, and issue
   backdating from git history; a shallow clone degrades analysis silently.
-- **`shell: bash` is pinned** on all four steps. They expand `$GRADLE_ARGS`
-  unquoted and so depend on word splitting — bash splits, zsh does not.
+- **`shell: bash` is pinned** on every `run:` step. They expand `$GRADLE_ARGS`
+  unquoted and so depend on word splitting — bash splits, zsh does not. A
+  composite action must declare `shell:` on every `run:` step regardless.
 - **Never add `--write-locks`.** Locking runs in `LockMode.STRICT`; CI's job is
   to fail on lock drift, not to paper over it.
 - **`cancel-in-progress: false`.** `main` is the verification gate, so every
   commit gets a verdict rather than only the newest.
 - **The release plugin re-triggers CI.** It pushes two commits per release to
-  `main`, each costing a run and a SonarCloud analysis. The workflow's closing
-  comment carries the `if:` guard to suppress them if that ever matters.
+  `main`. A job-level `if:` now skips the *new version commit* — its source is
+  identical to the commit before it — while still running on the *pre tag
+  commit*, which is the released code and its only SonarCloud analysis
+  (`./gradlew release` runs `build`, and `sonar` is not part of `build`).
 
 ## Diagnostics
 

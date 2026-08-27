@@ -92,8 +92,8 @@ jobs:
 
       # Same flags build-verify.yml uses, for the same reasons: quieten the
       # info-level logging set in gradle.properties, and pin the toolchain to
-      # the JDK installed below rather than letting foojay download a second
-      # one. See that file for the full rationale.
+      # the JDK the setup action installs rather than letting foojay download a
+      # second one. See that file for the full rationale.
       GRADLE_ARGS: >-
         --console=plain
         -Dorg.gradle.logging.level=lifecycle
@@ -116,18 +116,6 @@ jobs:
           # downstream build-verify run.
           token: ${{ secrets.RUBENS_PAT_TOKEN }}
 
-      # Must precede setup-gradle and any ./gradlew call: it sets JAVA_HOME,
-      # which is both the JVM running the daemon and the toolchain candidate
-      # Gradle discovers. Microsoft 25 matches the JvmVendorSpec.MICROSOFT pin.
-      - name: Set up Java 25 (Microsoft Build of OpenJDK)
-        uses: actions/setup-java@v5
-        with:
-          distribution: microsoft
-          java-version: '25'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
       # The plugin makes two commits. Git refuses to commit without an identity
       # configured, and a CI runner has none, so the release would fail at
       # preTagCommit. The values are read from gradle.properties so this
@@ -143,6 +131,17 @@ jobs:
           git config user.email "$(sed -n 's/^developerEmail=//p' gradle.properties)"
           git config --get user.name
           git config --get user.email
+
+      # Installs the pinned JDK and configures Gradle. Its defaults (microsoft
+      # 25) match the JvmVendorSpec.MICROSOFT toolchain pin, so nothing is
+      # passed. Referenced by PATH, so it is read from the workspace the
+      # checkout above populated -- which is why it cannot precede it.
+      #
+      # Only the toolchain half is reused: .github/actions/build would run
+      # compile/test/check, which "./gradlew release" runs again via
+      # runBuildTasks.
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
 
       # ---------------------------- release ----------------------------
       # The one step that matters. Everything above exists to let it succeed.
