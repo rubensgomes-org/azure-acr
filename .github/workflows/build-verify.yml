@@ -16,6 +16,9 @@
 # Dispatch-only on purpose. It used to run on every push to main, which meant a
 # release paid for CI twice -- once for the push, once for the release commits.
 #
+# Pinned at @v1, a MOVING major tag: patches arrive without editing this file,
+# and the shared workflow pins its own composite actions at the same tag.
+#
 # @author Rubens Gomes
 # ---------------------------------------------------------------------------
 name: build-verify
@@ -35,7 +38,7 @@ jobs:
     # Secrets are mapped EXPLICITLY. "secrets: inherit" forwards only secrets
     # whose names match the callee's declarations, so it would not map
     # RUBENS_PAT_TOKEN onto the declared packages-token.
-    uses: rubensgomes-org/azure-workflows/.github/workflows/gradle-build-verify.yml@main
+    uses: rubensgomes-org/azure-workflows/.github/workflows/gradle-build-verify.yml@v1
     secrets:
       packages-token: ${{ secrets.RUBENS_PAT_TOKEN }}
       sonar-token: ${{ secrets.SONAR_TOKEN }}

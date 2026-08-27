@@ -51,7 +51,7 @@ concurrency:
 
 jobs:
   delete:
-    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-repo-delete.yml@main
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-repo-delete.yml@v1
     with:
       environment: ${{ inputs.environment }}
       registry-name: ${{ inputs.registry_name }}

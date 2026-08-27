@@ -45,7 +45,7 @@ concurrency:
 
 jobs:
   build:
-    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-deploy.yml@main
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-deploy.yml@v1
     with:
       environment: ${{ inputs.environment }}
       tag: ${{ inputs.tag }}

@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   release:
-    uses: rubensgomes-org/azure-workflows/.github/workflows/gradle-release.yml@main
+    uses: rubensgomes-org/azure-workflows/.github/workflows/gradle-release.yml@v1
     secrets:
       # Needs repo (to push the release commits and tag) as well as
       # read:packages (to resolve the version catalog).

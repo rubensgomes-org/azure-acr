@@ -35,12 +35,12 @@ Full plan: `~/.claude/plans/i-have-a-few-effervescent-marshmallow.md`
 - [x] B2. Replace the four workflow files with stubs
 - [x] B3. Delete `azure-acr/.github/actions/`
 - [x] B4. Update stale docs: README.md, BUILD.md, llms.txt, TODO.md
-- [ ] B5. Dispatch-test all four (guards first on acr-repo-delete)
+- [x] B5. Dispatch-test all four (guards first on acr-repo-delete)
 
 ## Phase C - tag v1
 
-- [ ] C1. Tag `v1.0.0` + moving `v1`; add the tag-major automation
-- [ ] C2. Repin azure-acr stubs `@main` -> `@v1`
+- [x] C1. Tag `v1.0.0` + moving `v1`; add the tag-major automation
+- [x] C2. Repin azure-acr stubs `@main` -> `@v1`
 
 ## Phase D/E - roll out
 
