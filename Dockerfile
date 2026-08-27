@@ -45,15 +45,6 @@ COPY ${JAR_FILE} application.jar
 RUN java -Djarmode=tools -jar application.jar \
     extract --layers --destination extracted
 
-# The classic Docker builder used by "az acr build" corrupts the layer chain
-# when a COPY copies an EMPTY directory and a later COPY follows it -- the
-# export then fails with "failed to get layer <sha>: layer does not exist"
-# (moby#40591, moby#38866). "snapshot-dependencies" is empty for this project,
-# so drop a marker into every empty extracted layer directory and keep each
-# COPY in the runtime stage non-empty. BuildKit, which Docker Desktop and
-# "docker compose build" use, does not have the bug; ACR Tasks does.
-RUN find extracted -type d -empty -exec touch {}/.keep \;
-
 # ---------------------------------------------------------------------
 # --------------- >>> Stage 2: runtime <<< ----------------------------
 # ---------------------------------------------------------------------
@@ -93,12 +84,28 @@ WORKDIR /app
 #
 # "snapshot-dependencies" is empty for this project (all dependencies are
 # release versions) but the directory IS created -- ExtractCommand makes
-# one per layer listed in layers.idx. Copying an empty directory is what
-# breaks the classic builder, which is why the builder stage seeds every
-# empty layer directory with a ".keep" file.
+# one per layer listed in layers.idx -- so this COPY is safe.
+#
+# THE "RUN true" LINES ARE LORE-BEARING. DO NOT DELETE THEM.
+#
+# "az acr build" runs on the CLASSIC Docker builder -- the
+# "# syntax=docker/dockerfile:1" line at the top of this file is silently
+# ignored there -- and consecutive "COPY --from" instructions corrupt its
+# layer chain. The build then dies on the LAST of the run with
+# "failed to export image: ... failed to get layer <sha>: layer does not
+# exist" (moby#38866, moby#37965; Azure/acr#693 is this exact Spring Boot
+# layout). A no-op RUN between them forces a real container commit and
+# breaks the run up, which is the documented workaround.
+#
+# Nothing local reproduces this: Docker Desktop and "docker compose build"
+# use BuildKit, which does not have the bug. The three extra layers are
+# empty and cost nothing.
 COPY --from=builder --chown=spring:spring /builder/extracted/dependencies/          ./
+RUN true
 COPY --from=builder --chown=spring:spring /builder/extracted/spring-boot-loader/    ./
+RUN true
 COPY --from=builder --chown=spring:spring /builder/extracted/snapshot-dependencies/ ./
+RUN true
 COPY --from=builder --chown=spring:spring /builder/extracted/application/           ./
 
 # The default Spring Boot profile below is being set to docker.  However,
