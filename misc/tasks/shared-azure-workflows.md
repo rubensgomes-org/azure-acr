@@ -53,8 +53,8 @@ Done. `rubensgomes-org/azure-workflows` is public and tagged `v1.0.0`, with `v1`
 moving onto it. All ten repositories consume it and are pinned `@v1`; no
 repository keeps a local `.github/actions/`.
 
-`azure-acr` went from 1332 lines of workflow and action YAML to 197. The other
-nine went from ~330 each to 78.
+`azure-acr` went from 1238 lines of workflow and action YAML to 200. The other
+nine went from 430 each to 78 -- about 5100 lines replaced by one shared copy.
 
 ### Decisions taken during implementation, beyond the plan
 
