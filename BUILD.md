@@ -721,7 +721,9 @@ the full `build`, so a release executes the tests and the coverage gate.
 `.github/workflows/release.yml` runs exactly that command on a runner. It is the
 preferred way to cut a release: the runner always starts from a clean checkout
 of
-`main`, which is the state the plugin's preconditions assume.
+`main`, which is the state the plugin's preconditions assume. The stub delegates
+to `gradle-release.yml` in `azure-workflows`; the settings below are set there,
+except `permissions`, which must be granted by the stub.
 
 ```bash
 gh workflow run release.yml
@@ -746,11 +748,12 @@ fail at `preTagCommit`. The values are read out of `gradle.properties`
 (`developerName`, `developerEmail`) rather than hardcoded, so the maintainer
 identity is not written down in a second place.
 
-**Why a PAT rather than the automatic token.** A push made with the per-run
-`GITHUB_TOKEN` does not trigger other workflows — GitHub suppresses that to
-prevent recursion. Using it here would mean the released commit is never
-verified by `build-verify.yml`. The PAT restores that, at the cost of each
-release triggering roughly two extra `build-verify` runs, one per pushed commit.
+**Why a PAT rather than the automatic token.** Two reasons. The per-run
+`GITHUB_TOKEN` is scoped to this repository and cannot read the version catalog
+from GitHub Packages, which lives in another one. And a push made with it does
+not trigger other workflows — GitHub suppresses that to prevent recursion —
+which would matter if any workflow here triggered on push. None does today, so
+that second reason is deliberate headroom rather than a live requirement.
 
 **Two things that will stop the first run:**
 
@@ -792,44 +795,69 @@ Cloning this project as a template means replacing `sonar.organization`,
 
 ## Continuous integration
 
-Three workflows, with different postures:
+Four workflows, all `workflow_dispatch` only:
 
-| Workflow               | Trigger                      | Writes to the repo?                |
-|------------------------|------------------------------|------------------------------------|
-| `build-verify.yml`     | every push to `main`         | No — `permissions: contents: read` |
-| `release.yml`          | manual (`workflow_dispatch`) | **Yes** — two commits and a tag    |
-| `acr-build-deploy.yml` | manual (`workflow_dispatch`) | No — only an image, to Azure       |
+| Workflow               | Writes to the repo?                | Writes elsewhere?          |
+|------------------------|------------------------------------|----------------------------|
+| `build-verify.yml`     | No — `permissions: contents: read` | No                         |
+| `release.yml`          | **Yes** — two commits and a tag    | No                         |
+| `acr-build-deploy.yml` | No                                 | An image, to Azure         |
+| `acr-repo-delete.yml`  | No                                 | **Deletes** an ACR repository |
 
 `release.yml` is covered under [Releasing from CI](#releasing-from-ci). The rest
 of this section is about `build-verify.yml`.
 
-### Shared composite actions
+### The workflows are shared, not local
 
-The setup and build steps live in two local composite actions under
-`.github/actions/`, so a change lands in one place instead of three:
+All four files in `.github/workflows/` are **stubs**. The body of each lives in
+[`rubensgomes-org/azure-workflows`](https://github.com/rubensgomes-org/azure-workflows)
+and is shared with every other `rubensgomes-org` Spring Boot repository, so a CI
+change lands once instead of ten times.
 
-| Action              | Does                                                    | Used by                      |
-|---------------------|---------------------------------------------------------|------------------------------|
-| `setup-java-gradle` | `setup-java` (`microsoft` 25) + `setup-gradle`           | all three workflows          |
-| `build`             | `compile` → `test` → `check` → `assemble`                | build-verify, acr-build-deploy |
+A stub keeps only what GitHub cannot delegate: the workflow `name`, the
+`workflow_dispatch` inputs (a reusable workflow cannot define the dispatch
+form), the `permissions`, and the `concurrency` group. **To change what a
+workflow does, change it in `azure-workflows`** — editing the stub here only
+changes how it is invoked.
 
-Both are referenced by path (`uses: ./.github/actions/…`), so they are read from
-the workspace and **must come after `actions/checkout`**. Secrets are not
-readable inside a composite action, so `build` takes the Packages credentials as
-inputs. `release.yml` reuses only `setup-java-gradle` — `./gradlew release` runs
-the build itself via `runBuildTasks`.
+| Shared component      | Does                                            | Used by                        |
+|-----------------------|-------------------------------------------------|--------------------------------|
+| `setup-java-gradle`   | `setup-java` (`microsoft` 25) + `setup-gradle`  | all three Gradle workflows     |
+| `gradle-build`        | `compile` → `test` → `check` → `assemble`       | build-verify, acr-build-deploy |
+| `azure-login`         | `az login` as a service principal               | both ACR workflows             |
+| `verify-acr-registry` | assert a registry exists, return its login server | both ACR workflows           |
 
-All three workflows carry the same `GRADLE_ARGS` and the same GitHub Packages
-credentials in `PACKAGES_USER` / `PACKAGES_TOKEN`, because the `GITHUB_` prefix
-is reserved.
+Three constraints explain the shape of all this:
+
+- **Secrets are not readable inside a composite action**, so `gradle-build`
+  takes the Packages credentials as plain inputs, and anything handling
+  credentials is a reusable *workflow* rather than an action.
+- **Inside a reusable workflow, `actions/checkout` checks out the caller's
+  repository** — this one. That is why the shared workflows reference their
+  composite actions by full path rather than `./`.
+- **Secrets are mapped explicitly** in each stub. `secrets: inherit` forwards
+  only secrets whose names match the callee's declarations, so it would not map
+  `RUBENS_PAT_TOKEN` onto the declared `packages-token`.
+
+All three Gradle workflows carry the same `GRADLE_ARGS` and the same GitHub
+Packages credentials in `PACKAGES_USER` / `PACKAGES_TOKEN`, because the
+`GITHUB_` prefix is reserved.
 
 ### `build-verify.yml`
 
-It runs the same gate on every push to `main`, through the committed wrapper, so
-CI and a workstation execute identical Gradle.
+It runs the gate through the committed wrapper, so CI and a workstation execute
+identical Gradle.
 
-One job, `build-verify`, on `ubuntu-latest`: checkout, the two composite
-actions, then `sonar`. That renders as five phases:
+**Dispatch-only on purpose.** It used to trigger on every push to `main`, which
+made a release pay for CI twice — once for the push, once for the release
+commits.
+
+```bash
+gh workflow run build-verify.yml
+```
+
+One job, `build-verify`, on `ubuntu-latest`: checkout, `setup-java-gradle`,
+`gradle-build`, then `sonar`. That renders as five phases:
 
 | Step       | Command                         | What it adds                                         | Where     |
 |------------|---------------------------------|------------------------------------------------------|-----------|
@@ -843,7 +871,7 @@ actions, then `sonar`. That renders as five phases:
 `tasks.build`, **not** off `check` — `:app:check` reaches neither. Without it
 there is no `azure-acr-spring-boot.jar` for the Dockerfile and no `.env`.
 `build-verify` does not need either, but `acr-build-deploy.yml` does, and both
-call the same action.
+call the same `gradle-build` action.
 
 ### Why five invocations instead of one
 
@@ -880,9 +908,11 @@ JDK on every run. Expect the runner's preinstalled Temurin JDKs to appear in
 that error as detected-but-rejected — that is the pin working.
 
 Change the vendor in `app/build.gradle.kts` and you must change the
-`java-distribution` default in `.github/actions/setup-java-gradle/action.yml` to
-match. Those are the only two call sites — the Dockerfile is an ordinary JRE
-base now and imposes no vendor constraint.
+`java-distribution` default in the `setup-java-gradle` action — which now lives
+in `azure-workflows`, so the change affects every consumer. Those are the only
+two call sites; the Dockerfile is an ordinary JRE base now and imposes no vendor
+constraint. Alternatively, pass `java-distribution` from this repository's stub
+to override it here alone.
 
 ### Other details worth knowing
 
@@ -893,13 +923,12 @@ base now and imposes no vendor constraint.
   composite action must declare `shell:` on every `run:` step regardless.
 - **Never add `--write-locks`.** Locking runs in `LockMode.STRICT`; CI's job is
   to fail on lock drift, not to paper over it.
-- **`cancel-in-progress: false`.** `main` is the verification gate, so every
-  commit gets a verdict rather than only the newest.
-- **The release plugin re-triggers CI.** It pushes two commits per release to
-  `main`. A job-level `if:` now skips the *new version commit* — its source is
-  identical to the commit before it — while still running on the *pre tag
-  commit*, which is the released code and its only SonarCloud analysis
-  (`./gradlew release` runs `build`, and `sonar` is not part of `build`).
+- **`cancel-in-progress: false`.** A run is only ever started deliberately, so
+  it should finish rather than be superseded.
+- **A release gets no SonarCloud analysis.** `./gradlew release` runs `build`,
+  and `sonar` is not part of `build`. Since `build-verify` no longer triggers on
+  push, dispatch it by hand after a release if the released commit needs to be
+  analysed.
 
 ## Diagnostics
 
