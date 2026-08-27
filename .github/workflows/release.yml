@@ -30,8 +30,10 @@
 #   merge steps are not configured (see the note on pushReleaseVersionBranch
 #   in app/build.gradle.kts), so a release is identified by its tag alone.
 #
-#   Because it pushes to main, each release also triggers ~2 runs of
-#   build-verify.yml. That is expected.
+#   Those pushes trigger nothing: build-verify.yml is dispatch-only. The
+#   release runs "check" itself, so the only gate it does not apply is the
+#   SonarCloud analysis -- dispatch build-verify.yml by hand on the released
+#   commit when that is wanted.
 #
 # PRECONDITIONS (the plugin fails the build if any is unmet)
 #   - the current branch is "main"          -> requireBranch in app/build.gradle.kts
@@ -56,9 +58,10 @@ on:
 # "main". "contents: write" is what allows that.
 #
 # NOTE: the push is actually authenticated with the PAT persisted by the
-# checkout step below, not with the automatic per-run token. That is required
-# rather than cosmetic -- a push made with the automatic token does not trigger
-# other workflows, so build-verify.yml would never run on the released commit.
+# checkout step below, not with the automatic per-run token. Since no workflow
+# starts on a push any more, the per-run token would now do -- the PAT is kept
+# as deliberate headroom, so that restoring a push trigger does not silently
+# stop working. See the checkout step for the mechanics.
 permissions:
   contents: write
 
@@ -111,9 +114,13 @@ jobs:
           fetch-depth: 0
 
           # This token is persisted into .git/config and is what the plugin's
-          # own "git push" calls use. It must be a PAT with write access; the
-          # automatic per-run token would push successfully but suppress the
-          # downstream build-verify run.
+          # own "git push" calls use, so it needs write access.
+          #
+          # A PAT rather than the automatic per-run token, though nothing
+          # currently depends on the difference: a push made with the per-run
+          # token does not trigger other workflows, and today no workflow runs
+          # on a push. Keeping the PAT means adding a push trigger back is a
+          # one-line change here rather than a silent no-op.
           token: ${{ secrets.RUBENS_PAT_TOKEN }}
 
       # The plugin makes two commits. Git refuses to commit without an identity

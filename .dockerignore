@@ -65,8 +65,3 @@ commands/
 Dockerfile
 .dockerignore
 docker-compose*.yml
-
-# ---------- CI tooling ----------
-# An ACR Tasks task definition, not an input to the image build. The deploy
-# workflow reads it from $RUNNER_TEMP, not from the context.
-acr-smoke-test.yaml
