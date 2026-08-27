@@ -284,6 +284,41 @@ jobs:
 
           echo "Present in ${ACR_NAME}. Digest: ${digest}"
 
+      # -------------------------- smoke --------------------------
+      # Runs the pushed image on an ACR agent, so an image that cannot start
+      # fails here rather than at deploy time. "/dev/null" is the source
+      # location: the task runs an existing image and needs no build context,
+      # so nothing is uploaded.
+      #
+      # Two details this image forces, neither optional:
+      #
+      #   --entrypoint java
+      #       The image's ENTRYPOINT is "java -XX:AOTCache=app.aot -jar
+      #       application.jar". A bare "<image> java --version" would APPEND
+      #       those words as application arguments -- booting Spring Boot
+      #       instead of printing a version, and hanging until the task times
+      #       out. Overriding the entrypoint runs java directly.
+      #
+      #   $Registry/
+      #       An ACR Tasks variable the agent expands to this registry's login
+      #       server. Without it an unqualified name resolves to Docker Hub.
+      #       Escaped as \$Registry so bash leaves it for the agent.
+      - name: Smoke-test the image with az acr run
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Smoke-test the image with az acr run"
+          echo " az acr run --cmd '--entrypoint java \$Registry/${IMAGE} --version'"
+          echo "=============================================================="
+          set -euo pipefail
+
+          az acr run \
+            --registry "$ACR_NAME" \
+            --cmd "--entrypoint java \$Registry/$IMAGE --version" \
+            /dev/null
+
       # Ends the log with the exact reference to pull.
       - name: Report the published image
         shell: bash
