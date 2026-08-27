@@ -23,7 +23,7 @@
 #
 # @author Rubens Gomes
 # ---------------------------------------------------------------------------
-name: build-deploy-image
+name: acr-build-deploy
 
 on:
   # Manual only. Actions always dispatches from the default branch's copy.
@@ -51,7 +51,7 @@ permissions:
 
 # Never build two images at once -- they would race to push the same tag.
 concurrency:
-  group: build-deploy-image
+  group: acr-build-deploy
   cancel-in-progress: false
 
 jobs:
