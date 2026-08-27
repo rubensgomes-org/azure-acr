@@ -641,10 +641,14 @@ spotless {
 
 release {
     with(git) {
-        // branch that receives the released (non-snapshot) version
-        pushReleaseVersionBranch.set("release")
         // releases may only be cut from "main"
         requireBranch.set("main")
+
+        // NOTE: pushReleaseVersionBranch is deliberately NOT set. Setting it
+        // makes the plugin run a plain "git checkout <branch>" in its
+        // checkoutMergeToReleaseBranch step -- not "checkout -b" -- so the
+        // branch has to exist already, and this repository is single-trunk:
+        // "main" is the only branch. The release is identified by its tag.
     }
 }
 
