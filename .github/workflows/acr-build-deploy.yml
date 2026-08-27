@@ -319,6 +319,51 @@ jobs:
             --cmd "--entrypoint java \$Registry/$IMAGE --version" \
             /dev/null
 
+      # -------------------------- purge --------------------------
+      # Every rebuild of an existing tag orphans the manifest the tag used to
+      # point at. Those untagged manifests keep billing for their layers, so
+      # drop them once the new image is verified and smoke-tested.
+      #
+      # THE TAG REGEX IS "^$" AND THAT IS DELIBERATE. Do not "fix" it to ".*".
+      #
+      # "--untagged" deletes untagged manifests IN ADDITION TO every tag the
+      # filter matches -- it does not restrict the purge to untagged ones. So
+      # "--filter '<repo>:.*' --untagged" would delete every tag in the
+      # repository, including the image this very run just pushed. "^$" matches
+      # no tag name at all, which is the documented way to leave tags alone and
+      # collect only the dangling manifests.
+      #
+      # "--ago 0d" then means "of any age": untagged manifests honor --ago, and
+      # the one this run just orphaned is seconds old.
+      #
+      # Scoped to this run's repository, not the whole registry -- other
+      # repositories in a shared registry are not this workflow's to clean.
+      - name: Purge untagged images from the repository
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Purge untagged images from the repository"
+          echo "=============================================================="
+          set -euo pipefail
+
+          # IMAGE is "<environment>/<artifactId>:<tag>"; strip the tag. The
+          # repository name carries no colon, so the first colon is the right
+          # place to cut.
+          repository="${IMAGE%%:*}"
+
+          # Anchored so a repository whose name merely CONTAINS this one is not
+          # swept in alongside it.
+          purge_cmd="acr purge --filter '^${repository}$:^\$' --ago 0d --untagged"
+
+          echo " az acr run --registry ${ACR_NAME} --cmd \"${purge_cmd}\""
+
+          az acr run \
+            --registry "$ACR_NAME" \
+            --cmd "$purge_cmd" \
+            /dev/null
+
       # Ends the log with the exact reference to pull.
       - name: Report the published image
         shell: bash
