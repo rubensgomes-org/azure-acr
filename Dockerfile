@@ -45,6 +45,15 @@ COPY ${JAR_FILE} application.jar
 RUN java -Djarmode=tools -jar application.jar \
     extract --layers --destination extracted
 
+# The classic Docker builder used by "az acr build" corrupts the layer chain
+# when a COPY copies an EMPTY directory and a later COPY follows it -- the
+# export then fails with "failed to get layer <sha>: layer does not exist"
+# (moby#40591, moby#38866). "snapshot-dependencies" is empty for this project,
+# so drop a marker into every empty extracted layer directory and keep each
+# COPY in the runtime stage non-empty. BuildKit, which Docker Desktop and
+# "docker compose build" use, does not have the bug; ACR Tasks does.
+RUN find extracted -type d -empty -exec touch {}/.keep \;
+
 # ---------------------------------------------------------------------
 # --------------- >>> Stage 2: runtime <<< ----------------------------
 # ---------------------------------------------------------------------
@@ -84,7 +93,9 @@ WORKDIR /app
 #
 # "snapshot-dependencies" is empty for this project (all dependencies are
 # release versions) but the directory IS created -- ExtractCommand makes
-# one per layer listed in layers.idx -- so this COPY is safe.
+# one per layer listed in layers.idx. Copying an empty directory is what
+# breaks the classic builder, which is why the builder stage seeds every
+# empty layer directory with a ".keep" file.
 COPY --from=builder --chown=spring:spring /builder/extracted/dependencies/          ./
 COPY --from=builder --chown=spring:spring /builder/extracted/spring-boot-loader/    ./
 COPY --from=builder --chown=spring:spring /builder/extracted/snapshot-dependencies/ ./
