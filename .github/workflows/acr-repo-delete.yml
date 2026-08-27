@@ -1,0 +1,351 @@
+# SPDX-License-Identifier: MIT
+
+# ---------------------------------------------------------------------------
+# Deletes ONE repository -- every tag and every manifest in it -- from an
+# existing Azure Container Registry.
+#
+# MANUALLY TRIGGERED ONLY, AND THE DELETION IS UNRECOVERABLE. Basic SKU has no
+# soft-delete and no recycle bin: once this runs there is nothing to restore
+# from, and the run log is the only surviving record of what the repository
+# held.
+#
+# WHAT IT TARGETS
+#   <environment>/<artifactId>, e.g. dev/azure-acr. Same coordinates
+#   acr-build-deploy.yml publishes, minus the tag -- a repository has none.
+#   environment is an input; artifactId comes from app/gradle.properties, which
+#   is why the checkout happens even though nothing is built here.
+#
+# THE REGISTRY ITSELF IS NEVER TOUCHED. This deletes a repository INSIDE the
+# registry. Tearing the registry down is azure-iac's acr-destroy.yml.
+#
+# TWO INDEPENDENT GUARDS, both modeled on that acr-destroy.yml:
+#   1. ALLOWED_ACTOR -- only one GitHub user may run this.
+#   2. A typed confirmation phrase naming the exact repository.
+# Both are checked BEFORE the Azure sign-in, so a failed confirmation never
+# reaches Azure at all.
+#
+# @author Rubens Gomes
+# ---------------------------------------------------------------------------
+name: acr-repo-delete
+
+on:
+  # Manual only. Actions always dispatches from the default branch's copy.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Image namespace. With artifactId this forms the repository <environment>/<artifactId>.'
+        required: false
+        default: dev
+        type: string
+      registry_name:
+        description: 'Name of the EXISTING Azure Container Registry to delete from (not the login server).'
+        required: false
+        default: rubensdevacr
+        type: string
+      confirm:
+        description: >
+          EVERY TAG AND MANIFEST IN THE REPOSITORY IS DELETED PERMANENTLY.
+          There is no soft-delete and no recycle bin. Push anything you care
+          about elsewhere first.
+          SAFEGUARD: type EXACTLY "DELETE REPO <environment>/<artifactId>" --
+          e.g. DELETE REPO dev/azure-acr
+        required: true
+        type: string
+
+# Reads this repository and nothing else. The delete authenticates with the
+# Azure service principal, not the per-run token.
+permissions:
+  contents: read
+
+# Never run two deletes at once. Deliberately NOT shared with
+# acr-build-deploy.yml's group: closing the delete-races-a-push window would
+# mean giving both workflows one lifecycle-shaped group string, which is a
+# change to that workflow rather than to this one.
+concurrency:
+  group: acr-repo-delete
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    name: delete
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # Assumed to exist. Its login server is read back from Azure by the
+      # verify step rather than assumed to be "<name>.azurecr.io".
+      ACR_NAME: ${{ inputs.registry_name }}
+
+      # Bound here rather than written into a "run:" body. A "${{ }}"
+      # expression inside a run block is pasted in as raw TEXT before bash
+      # parses the script, so a value containing a quote or $(...) would
+      # execute on the runner -- in a workflow that DELETES things, with
+      # credentials in scope. Through "env:" the shell only ever sees an
+      # ordinary variable. Reference "$ENVIRONMENT"; never "${{ inputs.* }}".
+      ENVIRONMENT: ${{ inputs.environment }}
+
+      # Only this GitHub user may run this workflow, matching the gate in
+      # azure-iac's acr-destroy.yml. Update on a rename.
+      ALLOWED_ACTOR: rubensgomes
+
+    steps:
+      # Nothing is built here. The checkout exists so app/gradle.properties can
+      # be read for the artifactId, which is half of the repository name.
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # -------------------------- coordinates --------------------------
+      # Decides the repository name once, so the safeguard, the existence check
+      # and the delete cannot disagree about what is being removed.
+      - name: Resolve the repository coordinates
+        id: repo
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Resolve the repository coordinates"
+          echo "=============================================================="
+          set -euo pipefail
+
+          artifact_id="$(sed -n 's/^artifactId=//p' app/gradle.properties)"
+          if [ -z "$artifact_id" ]; then
+            echo "artifactId not found in app/gradle.properties" >&2
+            exit 1
+          fi
+
+          if [ -z "${ENVIRONMENT:-}" ]; then
+            echo "The environment input resolved to empty." >&2
+            exit 1
+          fi
+
+          # No tag: a repository does not have one. This is exactly the image
+          # coordinate acr-build-deploy.yml builds, with the ":<tag>" dropped.
+          echo "repository=${ENVIRONMENT}/${artifact_id}" >> "$GITHUB_OUTPUT"
+          echo "Target repository: ${ENVIRONMENT}/${artifact_id}"
+
+      # -------------------------- safeguard --------------------------
+      # Runs BEFORE any credential is used, so a failed confirmation never
+      # reaches Azure.
+      #
+      # The expected phrase is built from the RESOLVED repository above, not
+      # from a second typed input. Comparing against anything else would let
+      # this guard pass while a different repository is deleted.
+      - name: SAFEGUARD - Validate actor and confirmation phrase
+        shell: bash
+        env:
+          ACTOR: ${{ github.actor }}
+          REPOSITORY: ${{ steps.repo.outputs.repository }}
+          TYPED_CONFIRM: ${{ inputs.confirm }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: SAFEGUARD - Validate actor and confirmation phrase"
+          echo "=============================================================="
+          set -euo pipefail
+
+          if [ "$ACTOR" != "$ALLOWED_ACTOR" ]; then
+            echo "Denied: only '${ALLOWED_ACTOR}' may run this workflow." >&2
+            echo "Actor: '${ACTOR}'." >&2
+            exit 1
+          fi
+
+          expected_phrase="DELETE REPO ${REPOSITORY}"
+          if [ "$TYPED_CONFIRM" != "$expected_phrase" ]; then
+            echo "Denied: confirmation phrase did not match exactly." >&2
+            echo "Expected: ${expected_phrase}" >&2
+            echo "Got:      ${TYPED_CONFIRM}" >&2
+            echo "" >&2
+            echo "Nothing was deleted and Azure was never contacted." >&2
+            exit 1
+          fi
+
+          echo "Safeguard passed. Target repository: ${REPOSITORY}"
+
+      # -------------------------- azure --------------------------
+      # Plain "az login" rather than azure/login@v2: the org secrets are four
+      # separate values, and v2 wants them pre-assembled into one "creds" JSON.
+      - name: Sign in to Azure
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Sign in to Azure"
+          echo "=============================================================="
+          set -euo pipefail
+
+          # Name the missing secret rather than let the az CLI fail opaquely.
+          # Only the NAME is ever printed.
+          missing=0
+          for v in AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!v:-}" ]; then
+              echo "Missing required secret: ${v}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Check the organization Actions secrets on rubensgomes-org and"
+            echo "confirm they are shared with this repository."
+            exit 1
+          fi
+
+          az login --service-principal \
+            --username "$AZURE_CLIENT_ID" \
+            --password "$AZURE_CLIENT_SECRET" \
+            --tenant   "$AZURE_TENANT_ID" \
+            --output none
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          echo "Signed in. Target registry: ${ACR_NAME}"
+
+      # -------------------------- verify --------------------------
+      # Prove the registry exists before looking inside it, so a bad
+      # registry_name reports itself rather than surfacing as a missing
+      # repository. "az acr show" is the check and the lookup at once.
+      - name: Verify the registry exists
+        id: registry
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Verify the registry exists"
+          echo " az acr show --name ${ACR_NAME}"
+          echo "=============================================================="
+          set -euo pipefail
+
+          # Captured, not left to "set -e", so the cause can be explained.
+          # az's own stderr is deliberately NOT suppressed: a network or token
+          # failure must stay distinguishable from a missing registry.
+          if ! login_server="$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)"; then
+            echo "No Azure Container Registry named '${ACR_NAME}' is visible to" >&2
+            echo "this service principal in the signed-in subscription." >&2
+            echo "" >&2
+            echo "This workflow does not create registries. Pass an existing" >&2
+            echo "name via the registry_name input, or provision it from the" >&2
+            echo "azure-iac repository first." >&2
+            echo "" >&2
+            echo "Registries this principal CAN see:" >&2
+            az acr list --query '[].name' -o tsv >&2 || echo "  (none)" >&2
+            exit 1
+          fi
+
+          if [ -z "$login_server" ]; then
+            echo "Registry '${ACR_NAME}' returned an empty loginServer." >&2
+            exit 1
+          fi
+
+          echo "login_server=${login_server}" >> "$GITHUB_OUTPUT"
+          echo "Registry ${ACR_NAME} exists; login server is ${login_server}"
+
+      # -------------------------- exists --------------------------
+      # Decides whether there is anything to delete.
+      #
+      # "az acr repository list" rather than "az acr repository show": show
+      # exits non-zero for BOTH a missing repository and a network or token
+      # failure, which would make a broken run indistinguishable from an absent
+      # one and turn an outage into a silent green no-op. list exits zero on
+      # success, so absence is a clean answer and a real failure still fails.
+      - name: Check whether the repository exists
+        id: exists
+        shell: bash
+        env:
+          REPOSITORY: ${{ steps.repo.outputs.repository }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Check whether the repository exists"
+          echo " az acr repository list --name ${ACR_NAME}"
+          echo "=============================================================="
+          set -euo pipefail
+
+          if ! repositories="$(az acr repository list --name "$ACR_NAME" -o tsv)"; then
+            echo "Could not list the repositories in '${ACR_NAME}'." >&2
+            echo "That is a registry-level failure -- a network or token" >&2
+            echo "problem, or a principal without read access -- and NOT a" >&2
+            echo "missing repository. Nothing was deleted." >&2
+            exit 1
+          fi
+
+          # -F -x: the name is matched literally and in full, so "dev/azure-acr"
+          # never matches "dev/azure-acr-demo".
+          if ! printf '%s\n' "$repositories" | grep -Fxq "$REPOSITORY"; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Repository '${REPOSITORY}' is not in ${ACR_NAME}."
+            echo "Nothing to delete; the delete step will be skipped."
+            exit 0
+          fi
+
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+
+          # The run log is the only surviving record of what the repository
+          # held, so write the inventory down BEFORE deleting it. Informational
+          # only: a repository holding nothing but untagged manifests still
+          # deletes fine.
+          echo "Repository '${REPOSITORY}' exists. These tags will be"
+          echo "PERMANENTLY deleted along with it:"
+          tags="$(az acr repository show-tags --name "$ACR_NAME" --repository "$REPOSITORY" -o tsv 2>/dev/null || true)"
+          if [ -z "$tags" ]; then
+            echo "  <untagged manifests only>"
+          else
+            echo "$tags" | sed 's/^/  /'
+          fi
+
+      # -------------------------- delete --------------------------
+      # Guarded on the check above, which is what keeps an absent repository a
+      # green no-op rather than an error.
+      #
+      # "--yes" because there is no terminal to prompt at. The confirmation a
+      # human gives happens at the safeguard step, before Azure is contacted.
+      - name: Delete the repository
+        if: steps.exists.outputs.exists == 'true'
+        shell: bash
+        env:
+          REPOSITORY: ${{ steps.repo.outputs.repository }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Delete the repository"
+          echo " az acr repository delete --name ${ACR_NAME} --repository ${REPOSITORY}"
+          echo "=============================================================="
+          set -euo pipefail
+
+          az acr repository delete \
+            --name "$ACR_NAME" \
+            --repository "$REPOSITORY" \
+            --yes
+
+      # -------------------------- confirm --------------------------
+      # Runs on both paths. "az acr repository delete" reporting success only
+      # proves the call returned, so read the catalog back and fail here if the
+      # repository is somehow still listed.
+      - name: Report the outcome
+        shell: bash
+        env:
+          REPOSITORY: ${{ steps.repo.outputs.repository }}
+          EXISTED: ${{ steps.exists.outputs.exists }}
+          ACR_LOGIN_SERVER: ${{ steps.registry.outputs.login_server }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Report the outcome"
+          echo "=============================================================="
+          set -euo pipefail
+
+          if [ "$EXISTED" != "true" ]; then
+            echo "Nothing was deleted."
+            echo "  Registry:   ${ACR_NAME} (${ACR_LOGIN_SERVER})"
+            echo "  Repository: ${REPOSITORY} -- not present"
+            exit 0
+          fi
+
+          if ! repositories="$(az acr repository list --name "$ACR_NAME" -o tsv)"; then
+            echo "Deleted '${REPOSITORY}', but the catalog could not be read" >&2
+            echo "back to confirm it. Re-run to verify." >&2
+            exit 1
+          fi
+
+          if printf '%s\n' "$repositories" | grep -Fxq "$REPOSITORY"; then
+            echo "Repository '${REPOSITORY}' is STILL in ${ACR_NAME}." >&2
+            echo "The delete step reported success, so it did not take effect." >&2
+            exit 1
+          fi
+
+          echo "Deleted."
+          echo "  Registry:   ${ACR_NAME} (${ACR_LOGIN_SERVER})"
+          echo "  Repository: ${REPOSITORY} -- gone, with all of its tags and manifests"
