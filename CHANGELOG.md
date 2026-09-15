@@ -30,13 +30,17 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Added
 
-- `build-verify.yml` now exposes a `run-sonar` `workflow_dispatch` input
-  (checkbox), so the SonarCloud gate can be toggled from the "Run workflow"
-  UI instead of being hardcoded in the workflow file.
-
 ### Changed
 
 ### Fixed
+
+## [0.0.4] - 2026-09-15
+
+### Added
+
+- `build-verify.yml` now exposes a `run-sonar` `workflow_dispatch` input
+  (checkbox), so the SonarCloud gate can be toggled from the "Run workflow"
+  UI instead of being hardcoded in the workflow file.
 
 ## [0.0.3] - 2026-09-15
 
