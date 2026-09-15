@@ -29,9 +29,11 @@ on:
         type: string
       registry_name:
         description: 'Name of the EXISTING Azure Container Registry to push to (not the login server).'
-        required: false
-        default: crrgomesdev01
-        type: string
+        required: true
+        type: choice
+        options:
+          - crrgomesdev01
+          - crrgomeslab02
 
 permissions:
   contents: read

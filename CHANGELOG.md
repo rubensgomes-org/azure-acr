@@ -32,6 +32,11 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Changed
 
+- **Breaking:** `environment` and `registry_name` are now required dropdown
+  (`choice`) inputs on `acr-build-deploy` and `acr-repo-delete`, restricted to
+  `dev`/`lab` and `crrgomesdev01`/`crrgomeslab02` respectively, instead of
+  optional free-text strings.
+
 ### Fixed
 
 ## [0.0.2] - 2026-09-15

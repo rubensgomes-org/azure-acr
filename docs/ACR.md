@@ -68,8 +68,10 @@ instructions with `RUN true`.
 
 #### Registry
 
-- registry name: crrgomesdev01 (defined in the azure-iac project)
-- login server URL: crrgomesdev01.azurecr.io
+- registry names (defined in the azure-iac project):
+    - crrgomesdev01 (dev environment)
+    - crrgomeslab02 (lab environment)
+- login server URL: `<registry name>.azurecr.io`
 
 #### Repository
 
