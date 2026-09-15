@@ -32,14 +32,18 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Changed
 
+### Fixed
+
+## [0.0.2] - 2026-09-15
+
+### Changed
+
 - **Breaking:** the `acr-repo-delete` confirm phrase is now
   `DELETE REPO <registry_name> <environment>/<artifactId>`, so a mistyped
   registry cannot pass the safeguard.
 - `acr-repo-delete` and `scripts/acr-repo-delete.sh` now succeed when the
   registry does not exist, matching their existing behavior for a repository
   that does not exist.
-
-### Fixed
 
 ## [0.0.1] - 2026-09-15
 
