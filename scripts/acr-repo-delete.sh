@@ -86,7 +86,8 @@ declare g_registry_name=
 # "<git-root>/app/gradle.properties" when left unset.
 declare g_properties_path=
 
-# Must equal "DELETE REPO <environment>/<artifactId>" exactly.
+# Must equal "DELETE REPO <registry> <environment>/<artifactId>"
+# exactly.
 declare g_confirm=
 
 # Boolean flag used to run this shell script in "dry" run mode
@@ -135,11 +136,12 @@ Argument Options:
   -p, --properties <path>      properties file holding artifactId
                                 (default: app/gradle.properties)
   -c, --confirm <phrase>       must equal exactly:
-                                "DELETE REPO <environment>/<id>"
+                                "DELETE REPO <registry> <env>/<id>"
 
 confirm (**required**):
   Safeguard against an accidental delete. Must match the resolved
-  repository exactly, e.g. "DELETE REPO lab/azure-acr".
+  registry and repository exactly, e.g.
+  "DELETE REPO crrgomesdev01 dev/azure-acr".
 
 EOF
 }
@@ -413,18 +415,20 @@ resolve_repository() {
 
 #####################################################################
 ## SAFEGUARD. Validates the typed confirmation phrase against the
-## resolved repository, so the phrase proves the caller knows what
-## will actually be deleted.
+## resolved registry and repository, so the phrase proves the caller
+## knows what will actually be deleted.
 ## Arguments:
-##  1: resolved repository, e.g. lab/azure-acr
-##  2: typed confirmation phrase
+##  1: registry name
+##  2: resolved repository, e.g. lab/azure-acr
+##  3: typed confirmation phrase
 ## Returns:
 ##   0 if the phrase matches; something else if fails.
 #####################################################################
 validate_safeguard() {
-  local -r repository="${1}"
-  local -r typed_confirm="${2}"
-  local -r expected="DELETE REPO ${repository}"
+  local -r registry_name="${1}"
+  local -r repository="${2}"
+  local -r typed_confirm="${3}"
+  local -r expected="DELETE REPO ${registry_name} ${repository}"
 
   if [[ "${typed_confirm}" != "${expected}" ]]; then
     msg::error "confirmation phrase did not match exactly.\n"
@@ -434,37 +438,56 @@ validate_safeguard() {
     return 1
   fi
 
-  msg::info "safeguard passed. target repository: %s\n" \
-    "${repository}"
+  msg::info "safeguard passed. target: %s %s\n" \
+    "${registry_name}" "${repository}"
 }
 
 #####################################################################
-## Asserts the Azure Container Registry exists and is visible to
-## the signed-in principal.
+## Checks whether the Azure Container Registry exists and is visible
+## to the signed-in principal. Deliberately uses "acr list" and not
+## "acr show": "show" cannot distinguish "absent" from "the
+## subscription could not be reached".
+##
+## An absent registry is not an error. A repository cannot outlive
+## the registry that held it, so there is nothing left to delete.
 ## Arguments:
 ##  1: registry name
 ## Outputs:
-##  stdout: the registry's login server
+##  stdout: the registry's login server, when it exists
 ## Returns:
-##   0 if okay; something else if fails.
+##   0 if the registry exists; 1 if it does not; 2 on a
+##   subscription-level failure.
 #####################################################################
-verify_registry_exists() {
+registry_exists() {
   local -r registry_name="${1}"
+  local registries
   local login_server
+
+  if ! registries="$(az acr list --query '[].name' -o tsv)"; then
+    msg::error "could not list registries in this subscription.\n"
+    return 2
+  fi
+
+  # -i: ACR names are case-insensitive in Azure, and "acr list"
+  # returns the canonical casing.
+  if ! printf '%s\n' "${registries}" \
+    | grep -Fxqi "${registry_name}"; then
+    return 1
+  fi
 
   if ! login_server="$(
     az acr show --name "${registry_name}" \
       --query loginServer -o tsv
   )"; then
-    msg::error "no ACR named [%s] is visible in this subscription.\n" \
+    msg::error "could not read the login server of [%s].\n" \
       "${registry_name}"
-    return 1
+    return 2
   fi
 
   if [[ -z "${login_server}" ]]; then
     msg::error "registry [%s] returned an empty login server.\n" \
       "${registry_name}"
-    return 1
+    return 2
   fi
 
   printf '%s\n' "${login_server}"
@@ -740,7 +763,8 @@ main() {
 
   # --------------- >>> SAFEGUARD <<< --------------------------------
 
-  validate_safeguard "${repository}" "${g_confirm}" || return
+  validate_safeguard "${g_registry_name}" "${repository}" \
+    "${g_confirm}" || return
 
   # --------------- >>> Verify Azure Sign-In <<< ---------------------
 
@@ -752,9 +776,20 @@ main() {
   # --------------- >>> Verify Registry And Repository <<< -----------
 
   local login_server
+  local registry_rc=0
   login_server="$(
-    verify_registry_exists "${g_registry_name}"
-  )" || return
+    registry_exists "${g_registry_name}"
+  )" || registry_rc=$?
+
+  if [[ "${registry_rc}" -eq 2 ]]; then
+    return 1
+  fi
+
+  if [[ "${registry_rc}" -eq 1 ]]; then
+    msg::info "registry [%s] does not exist. Nothing to delete.\n" \
+      "${g_registry_name}"
+    return 0
+  fi
 
   local exists_rc=0
   repository_exists "${g_registry_name}" "${repository}" \

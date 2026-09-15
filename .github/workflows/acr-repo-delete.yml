@@ -29,8 +29,9 @@ on:
           EVERY TAG AND MANIFEST IN THE REPOSITORY IS DELETED PERMANENTLY.
           There is no soft-delete and no recycle bin. Push anything you care
           about elsewhere first.
-          SAFEGUARD: type EXACTLY "DELETE REPO <environment>/<artifactId>" --
-          e.g. DELETE REPO dev/azure-acr
+          SAFEGUARD: type EXACTLY
+          "DELETE REPO <registry_name> <environment>/<artifactId>" --
+          e.g. DELETE REPO crrgomesdev01 dev/azure-acr
         required: true
         type: string
 

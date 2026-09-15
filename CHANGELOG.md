@@ -32,7 +32,26 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Changed
 
+- **Breaking:** the `acr-repo-delete` confirm phrase is now
+  `DELETE REPO <registry_name> <environment>/<artifactId>`, so a mistyped
+  registry cannot pass the safeguard.
+- `acr-repo-delete` and `scripts/acr-repo-delete.sh` now succeed when the
+  registry does not exist, matching their existing behavior for a repository
+  that does not exist.
+
 ### Fixed
+
+## [0.0.1] - 2026-09-15
+
+### Changed
+
+- Point the SCM coordinates and the image `org.opencontainers.image.source`
+  label at the new `azure-acr` repository location.
+- Target the `crrgomesdev01` registry instead of `crrgomeslab01` in the
+  `acr-build-deploy` and `acr-repo-delete` workflows, the `acr-repo-delete`
+  script, and `docs/ACR.md`.
+- Default the image namespace to `dev` instead of `lab`.
+- Refer to the sibling repositories as `azure-iac` and `azure-workflows`.
 
 ## [0.0.0] - 2026-09-14
 
