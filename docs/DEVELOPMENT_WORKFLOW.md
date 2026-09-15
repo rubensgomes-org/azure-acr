@@ -80,20 +80,20 @@ library or framework version requires regenerating the lock files.
 
 ### Common commands
 
-| Command                                     | Purpose                                              |
-|---------------------------------------------|------------------------------------------------------|
-| `./gradlew bootRun`                         | Run locally on port 8080                             |
-| `./gradlew test`                            | Run the suite; coverage report always follows        |
-| `./gradlew build`                           | Format check + tests + coverage gate + all artifacts |
-| `./gradlew spotlessApply`                   | Reformat sources                                     |
-| `./gradlew publishToMavenLocal`             | Install to `~/.m2`                                   |
-| `./gradlew release`                         | Tag and bump only — no Release; use the workflow     |
-| `./gradlew :app:dependencies --write-locks` | Regenerate the `:app` dependency lock files          |
-| `gh workflow run build-verify.yml`          | Run the build + Sonar gate in CI                     |
-| `gh workflow run release.yml`               | Cut a release: check changelog, tag, publish Release |
-| `gh workflow run acr-build-deploy.yml`      | Build and push the image to ACR                      |
-| `docker compose up --build -d`              | Build and run the image — `./gradlew build` first    |
-| `docker compose down`                       | Stop and remove the container                        |
+| Command                                              | Purpose                                              |
+|-------------------------------------------------------|-------------------------------------------------------|
+| `./gradlew bootRun`                                  | Run locally on port 8080                             |
+| `./gradlew test`                                     | Run the suite; coverage report always follows        |
+| `./gradlew build`                                    | Format check + tests + coverage gate + all artifacts |
+| `./gradlew spotlessApply`                            | Reformat sources                                     |
+| `./gradlew publishToMavenLocal`                      | Install to `~/.m2`                                   |
+| `./gradlew release`                                  | Tag and bump only — no Release; use the workflow     |
+| `./gradlew :app:dependencies --write-locks`          | Regenerate the `:app` dependency lock files          |
+| `gh workflow run build-verify.yml -f run-sonar=true` | Run the build in CI, with the Sonar gate             |
+| `gh workflow run release.yml`                        | Cut a release: check changelog, tag, publish Release |
+| `gh workflow run acr-build-deploy.yml`               | Build and push the image to ACR                      |
+| `docker compose up --build -d`                       | Build and run the image — `./gradlew build` first    |
+| `docker compose down`                                | Stop and remove the container                        |
 
 ## Quick start
 

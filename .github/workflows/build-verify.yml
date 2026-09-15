@@ -13,6 +13,12 @@ name: build-verify
 
 on:
     workflow_dispatch:
+        inputs:
+            run-sonar:
+                description: 'Run the SonarCloud analysis and quality gate.'
+                required: false
+                type: boolean
+                default: false
 
 permissions:
     contents: read
@@ -25,6 +31,8 @@ jobs:
     build-verify:
         # See note below about creating/configuring PAT token.
         uses: rubensgomes-org/azure-workflows/.github/workflows/gradle-build-verify.yml@v0
+        with:
+            run-sonar: ${{ inputs.run-sonar }}
         secrets:
             # 1. You must create a PAT token on this repo's GitHub user account:
             #    Settings -- Developer settings -- Personal access tokens -- Tokens (classic)
