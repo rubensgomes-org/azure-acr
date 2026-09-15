@@ -1,0 +1,5 @@
+############################ test ###########################################
+logging:
+  level:
+    com.rubensgomes.azure.acr: "trace"
+    org.springframework: "info"

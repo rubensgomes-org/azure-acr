@@ -1,0 +1,55 @@
+# =============================================================================
+# acr-repo-delete (azure-acr)
+#
+# DESTRUCTIVE. Deletes an entire repository -- every tag and every manifest --
+# from an Azure Container Registry.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: acr-repo-delete (azure-acr)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Image namespace. With artifactId this forms the repository <environment>/<artifactId>.'
+        required: false
+        default: lab
+        type: string
+      registry_name:
+        description: 'Name of the EXISTING Azure Container Registry to delete from (not the login server).'
+        required: false
+        default: crrgomeslab01
+        type: string
+      confirm:
+        description: >
+          EVERY TAG AND MANIFEST IN THE REPOSITORY IS DELETED PERMANENTLY.
+          There is no soft-delete and no recycle bin. Push anything you care
+          about elsewhere first.
+          SAFEGUARD: type EXACTLY "DELETE REPO <environment>/<artifactId>" --
+          e.g. DELETE REPO lab/azure-acr
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acr-repo-delete
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-repo-delete.yml@v0
+    with:
+      environment: ${{ inputs.environment }}
+      registry-name: ${{ inputs.registry_name }}
+      confirm: ${{ inputs.confirm }}
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}

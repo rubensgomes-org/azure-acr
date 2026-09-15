@@ -1,0 +1,197 @@
+# =============================================================================
+# release
+#
+# Cuts a release and publishes it. One workflow, three jobs:
+#
+#   plan     resolve the version and tag, and prove CHANGELOG.md has a
+#            matching section
+#   cut      ./gradlew release: commit, tag, push, bump
+#   publish  turn the tag into a GitHub Release
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
+
+    steps:
+      # PINNED TO A COMMIT SHA, NOT A TAG
+      #
+      # The risk: a tag is a mutable pointer. Whoever owns the action can move
+      # v7.0.1 onto any commit at any time, and every workflow naming that tag
+      # silently runs the new code on its next run.
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # The version comes from the build and the tag is derived from it. Both
+      # are validated before anything downstream runs.
+      - name: Resolve the version and tag
+        id: resolve
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Resolve the version and tag"
+          echo "=============================================================="
+          set -euo pipefail
+
+          props='app/gradle.properties'
+          raw="$(sed -n 's/^version=//p' "$props" | tr -d '[:space:]')"
+
+          if [ -z "$raw" ]; then
+            echo "::error::No 'version=' found in ${props}."
+            exit 1
+          fi
+
+          # release.useAutomaticVersion=true makes the plugin release
+          # exactly this, with the suffix stripped.
+          version="${raw%-SNAPSHOT}"
+
+          if [ "$version" = "$raw" ]; then
+            echo "::error::${props} version '${raw}' is not a -SNAPSHOT."
+            echo "The release plugin requires a snapshot version to" >&2
+            echo "release from. main should never sit on a release" >&2
+            echo "version." >&2
+            exit 1
+          fi
+
+          tag="v${version}"
+
+          if ! printf '%s' "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'${tag}' is not vMAJOR.MINOR.PATCH."
+            exit 1
+          fi
+
+          echo "Version : ${version}"
+          echo "Tag     : ${tag}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}"         >> "$GITHUB_OUTPUT"
+
+      # The whole reason this job exists. See the header.
+      - name: Verify the CHANGELOG section exists and is not empty
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Verify the CHANGELOG section exists and is not empty"
+          echo "=============================================================="
+          set -euo pipefail
+
+          if ! grep -q "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [${VERSION}]' section."
+            echo "Rename [Unreleased] to ${VERSION}, add a fresh empty" >&2
+            echo "[Unreleased] above it, commit to main, then re-run." >&2
+            exit 1
+          fi
+
+          awk -v ver="${VERSION}" '
+            $0 == "## [" ver "]" ||
+              index($0, "## [" ver "] ") == 1 { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md > release-notes.md
+
+          # Renaming [Unreleased] and writing nothing leaves the "### Added
+          # / ### Changed / ### Fixed" skeleton behind, which is not a release
+          # note. Require a line that is neither blank nor a sub-heading.
+          if ! grep -qE '^[[:space:]]*[^[:space:]#]' release-notes.md; then
+            echo "::error::The '## [${VERSION}]' section has no content --" \
+                 "only blank lines and empty sub-headings."
+            echo "Write what changed under it, commit, then re-run." >&2
+            exit 1
+          fi
+
+          echo "----- release notes -----"
+          cat release-notes.md
+
+  # -------------------------------------------------------------------------
+  # The only job that writes to the repository.
+  # -------------------------------------------------------------------------
+  cut:
+    name: cut
+    needs: plan
+    uses: rubensgomes-org/azure-workflows/.github/workflows/gradle-release.yml@v0
+    secrets:
+      # Needs repo (to push the release commits and tag) as well as
+      # read:packages (to resolve the version catalog).
+      packages-token: ${{ secrets.RUBENS_PAT_TOKEN }}
+
+  # -------------------------------------------------------------------------
+  # Turns the tag into a GitHub Release.
+  # -------------------------------------------------------------------------
+  publish:
+    name: publish
+    needs: [plan, cut]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+      VERSION: ${{ needs.plan.outputs.version }}
+
+    steps:
+      # SHA-pinned security reasons
+      - name: Check out the release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+
+      - name: Build release notes from CHANGELOG
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Build release notes from CHANGELOG"
+          echo "=============================================================="
+          set -euo pipefail
+
+          awk -v ver="${VERSION}" '
+            $0 == "## [" ver "]" ||
+              index($0, "## [" ver "] ") == 1 { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md > release-notes.md
+
+          # Same rule the plan job applied; see the comment there.
+          if ! grep -qE '^[[:space:]]*[^[:space:]#]' release-notes.md; then
+            echo "::error::Release notes for ${VERSION} have no content at" \
+                 "${RELEASE_TAG}."
+            exit 1
+          fi
+
+          echo "----- release notes -----"
+          cat release-notes.md
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Publish GitHub Release"
+          echo "=============================================================="
+          set -euo pipefail
+
+          gh release create "${RELEASE_TAG}" \
+            --title "${RELEASE_TAG}" \
+            --notes-file release-notes.md

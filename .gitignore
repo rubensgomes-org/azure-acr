@@ -1,0 +1,74 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### MacOS files ###
+.DS_Store
+
+### Miscellaneous ###
+TODO.md
+
+### AI plan files ###
+misc/tasks/
+
+### ---------- >>> Secrets <<< ---------- ###
+# Core secrets files
+.env
+.env.local
+.env.*.local
+
+# API keys and certificates
+*.pem
+*.key
+*.crt
+*.cer
+*.pub
+*.pfx
+*.p12
+*.keystore
+*.jks
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+jwt.secret
+certs/
+
+# Cloud provider credentials
+credentials.json
+.aws/
+.gcloud/

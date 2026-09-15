@@ -1,0 +1,84 @@
+############################ default ###########################################
+## https://docs.spring.io/spring-boot/appendix/application-properties/index.html#appendix.application-properties.data
+spring:
+  application:
+    # Replaced at processResources time with the "artifactId" property from
+    # "app/gradle.properties" -- see the Resource Filtering section of
+    # "app/build.gradle.kts". Editing this literal has no effect; change
+    # artifactId instead.
+    name: "@artifactId@"
+  # disable docker compose up when running ./gradlew bootRun
+  docker:
+    compose:
+      lifecycle-management: none
+  # timeout to handle sigterm (default is 30s)
+  lifecycle:
+    timeout-per-shutdown-phase: 5s
+  # color the logs when possible
+  output:
+    ansi:
+      enabled: DETECT
+
+## --------------- >>> logging <<< --------------------------------------------
+logging:
+  group:
+    tomcat: "org.apache.catalina,org.apache.coyote,org.apache.tomcat"
+  level:
+    # The package below must match the real application package exactly, or
+    # the level applies to nothing and the log statements fall back to "root".
+    com.rubensgomes.azure.acr: "trace"
+    # Quiet by default so a deployed service does not log at INFO. Local runs
+    # raise this via the "local" profile in "application-local.yml", which
+    # "bootRun" activates automatically.
+    root: "error"
+    tomcat: "warn"
+    # spring boot "logging.group.web"
+    # org.springframework.core.codec
+    # org.springframework.http
+    # org.springframework.web
+    # org.springframework.boot.actuate.endpoint.web
+    # org.springframework.boot.web.servlet.ServletContextInitializerBeans
+    web: "warn"
+
+## --------------- >>> server <<< ---------------------------------------------
+server:
+  error:
+    include-message: "always"
+  port: 8080
+  servlet:
+    context-path: "/"
+  shutdown: "graceful"
+
+## --------------- >>> openapi <<< --------------------------------------------
+## Bound by "OpenApiProperties" and used to build the "info" section of the
+## generated OpenAPI document. The three tokens are replaced at
+## processResources time from "app/gradle.properties" -- see the Resource
+## Filtering section of "app/build.gradle.kts". Editing these literals has no
+## effect; change the gradle properties instead.
+openapi:
+  description: "@description@"
+  title: "@title@"
+  version: "@version@"
+
+## --------------- >>> springdoc <<< ------------------------------------------
+## https://springdoc.org/
+##
+## Off by default, and deliberately so. This project carries no Spring Security
+## on its classpath, so every path it serves is unauthenticated. An enabled
+## Swagger UI on a deployed instance of this image would therefore be an open
+## API console, and "/v3/api-docs" an open description of how to drive it.
+##
+## "application-local.yml" turns both back on, exactly as it does for
+## "logging.level.root", so "./gradlew bootRun" gets the console and nothing
+## else does.
+##
+## "paths-to-exclude" drops "GlobalErrorController". It maps "/error" for seven
+## HTTP methods, which would otherwise surface as seven operations describing a
+## container-internal forward target rather than part of the public API.
+## Actuator needs no handling here: "springdoc.show-actuator" is false already.
+springdoc:
+  api-docs:
+    enabled: false
+  paths-to-exclude: "/error"
+  swagger-ui:
+    enabled: false

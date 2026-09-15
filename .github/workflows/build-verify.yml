@@ -1,0 +1,37 @@
+# =============================================================================
+# build-verify
+#
+# Compiles, tests, checks and assembles the project, then blocks on the
+# SonarCloud quality gate. Dispatch-only on purpose.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: build-verify
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    build-verify:
+        # See note below about creating/configuring PAT token.
+        uses: rubensgomes-org/azure-workflows/.github/workflows/gradle-build-verify.yml@v0
+        secrets:
+            # 1. You must create a PAT token on this repo's GitHub user account:
+            #    Settings -- Developer settings -- Personal access tokens -- Tokens (classic)
+            # 2. Copy the value of this PAT token to an Action secret named
+            #    RUBENS_PAT_TOKEN on this repo Action Secrets:
+            #    Repo's Settings -- Secrets and variables -- Actions -- New repository secret
+            packages-token: ${{ secrets.RUBENS_PAT_TOKEN }}
+            # The Sonar static analysis run is optional, and you do NOT need a
+            # SONAR_TOKNE unless you enable to run sonar.
+            sonar-token: ${{ secrets.SONAR_TOKEN }}
