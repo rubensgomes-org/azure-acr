@@ -62,7 +62,7 @@ RUN set -eu; \
 LABEL org.opencontainers.image.title="azure-acr" \
       org.opencontainers.image.description="Spring Boot demo that builds and publishes its container image to Azure Container Registry" \
       org.opencontainers.image.version="${APP_VERSION}" \
-      org.opencontainers.image.source="https://github.com/3cloud-sandbox/rgomes-azure-acr" \
+      org.opencontainers.image.source="https://github.com/rugensgomes-org/azure-acr" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="Rubens Gomes"
 

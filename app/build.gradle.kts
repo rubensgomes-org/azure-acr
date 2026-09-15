@@ -734,7 +734,7 @@ release {
     // "$version".
     //
     // The prefix is for consistency with the sibling azure-iac and
-    // rgomes-azure-workflows repositories. Nothing depends on it: the release
+    // azure-workflows repositories. Nothing depends on it: the release
     // workflow computes the tag it expects rather than matching a pattern, so
     // changing this template changes the tag and the workflow follows.
     //
