@@ -17,12 +17,12 @@ on:
       environment:
         description: 'Image namespace. With artifactId this forms the repository <environment>/<artifactId>.'
         required: false
-        default: lab
+        default: dev
         type: string
       registry_name:
         description: 'Name of the EXISTING Azure Container Registry to delete from (not the login server).'
         required: false
-        default: crrgomeslab01
+        default: crrgomesdev01
         type: string
       confirm:
         description: >
@@ -30,7 +30,7 @@ on:
           There is no soft-delete and no recycle bin. Push anything you care
           about elsewhere first.
           SAFEGUARD: type EXACTLY "DELETE REPO <environment>/<artifactId>" --
-          e.g. DELETE REPO lab/azure-acr
+          e.g. DELETE REPO dev/azure-acr
         required: true
         type: string
 

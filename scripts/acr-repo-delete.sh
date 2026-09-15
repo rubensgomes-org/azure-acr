@@ -131,7 +131,7 @@ Argument Options:
 
   -e, --environment <env>      image namespace (default: lab)
   -r, --registry <name>        ACR name, not the login server
-                                (default: crrgomeslab01)
+                                (default: crrgomesdev01)
   -p, --properties <path>      properties file holding artifactId
                                 (default: app/gradle.properties)
   -c, --confirm <phrase>       must equal exactly:
@@ -180,7 +180,7 @@ EOF
 #####################################################################
 reset_globals() {
   g_environment="lab"
-  g_registry_name="crrgomeslab01"
+  g_registry_name="crrgomesdev01"
   g_properties_path=
   g_confirm=
   g_is_dry_run=FALSE

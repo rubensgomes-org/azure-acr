@@ -6,7 +6,7 @@
 # and purges the untagged manifests it orphaned.
 #
 # The EXISTING Azure Container Registry is expected to be provisioned using
-# one of the workflows in the Terraform IaC `rgomes-azure-iac` repo.
+# one of the workflows in the Terraform IaC `azure-iac` repo.
 #
 # This project's source code and documentation were generated with the
 # assistance of Artificial Intelligence (AI). For more information, please
@@ -21,7 +21,7 @@ on:
       environment:
         description: 'Image namespace, used as <environment>/<artifactId>:<tag>.'
         required: false
-        default: lab
+        default: dev
         type: string
       tag:
         description: 'Image tag. Empty defaults to the application version (APP_VERSION in .env).'
@@ -30,7 +30,7 @@ on:
       registry_name:
         description: 'Name of the EXISTING Azure Container Registry to push to (not the login server).'
         required: false
-        default: crrgomeslab01
+        default: crrgomesdev01
         type: string
 
 permissions:

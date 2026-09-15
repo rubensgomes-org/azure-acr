@@ -61,15 +61,15 @@ instructions with `RUN true`.
    container.
 2. Place the ACR registry in the platform resource group
    (`rg-rgomesplatform-lab`), alongside the other resources whose lifecycle is
-   not tied to a single application. Refer to the rgomes-azure-iac project for
+   not tied to a single application. Refer to the azure-iac project for
    more information about the resource group of an ACR registry.
 3. Build and deployment of artifacts should use headless service identity
    (e.g., using a Service Principal).
 
 #### Registry
 
-- registry name: crrgomeslab01 (defined in the rgomes-azure-iac project)
-- login server URL: crrgomeslab01.azurecr.io
+- registry name: crrgomesdev01 (defined in the azure-iac project)
+- login server URL: crrgomesdev01.azurecr.io
 
 #### Repository
 
@@ -94,10 +94,10 @@ instructions with `RUN true`.
 
 ### Sample Artifacts
 
-- crrgomeslab01.azurecr.io/lab/azure-acr:0.0.0-SNAPSHOT
+- crrgomesdev01.azurecr.io/dev/azure-acr:0.0.0-SNAPSHOT
 
 <!-- @formatter:off -->
-- crrgomeslab01.azurecr.io/prod/azure-acr@sha256:0a2e01852872580b2c2fea9380ff8d7b637d3928783c55beb3f21a6e58d5d108
+- crrgomesdev01.azurecr.io/prod/azure-acr@sha256:0a2e01852872580b2c2fea9380ff8d7b637d3928783c55beb3f21a6e58d5d108
 <!-- @formatter:on -->
 
 ### az Commands
@@ -112,34 +112,34 @@ the registry is selected.
 az acr list --output table
 
 # One registry. Fails if it does not exist, so it doubles as an existence check.
-az acr show --name crrgomeslab01 --output table
+az acr show --name crrgomesdev01 --output table
 
 # Read the login server back from Azure rather than assembling
 # "<name>.azurecr.io", which hardcodes the public-cloud suffix.
-az acr show --name crrgomeslab01 --query loginServer --output tsv
+az acr show --name crrgomesdev01 --query loginServer --output tsv
 
 # Storage consumed against the service tier quota.
-az acr show-usage --name crrgomeslab01 --output table
+az acr show-usage --name crrgomesdev01 --output table
 ```
 
 #### Check and list the repository
 
 ```bash
 # Every repository in the registry, namespace included (e.g. lab/azure-acr).
-az acr repository list --name crrgomeslab01 --output tsv
+az acr repository list --name crrgomesdev01 --output tsv
 
 # Tags of one repository.
-az acr repository show-tags --name crrgomeslab01 \
+az acr repository show-tags --name crrgomesdev01 \
   --repository lab/azure-acr --output tsv
 
 # The digest a tag currently points at. Use this to confirm a push landed:
 # "az acr build" has been known to report success when the push did not.
-az acr repository show --name crrgomeslab01 \
+az acr repository show --name crrgomesdev01 \
   --image lab/azure-acr:0.0.0-SNAPSHOT --query digest --output tsv
 
 # Manifests, including the untagged ones left behind by re-pushing a tag.
 # Here --name is the REPOSITORY; the registry is --registry. Preview command.
-az acr manifest list-metadata --registry crrgomeslab01 \
+az acr manifest list-metadata --registry crrgomesdev01 \
   --name lab/azure-acr --output table
 ```
 
@@ -151,7 +151,7 @@ with no Docker on the machine issuing the command.
 
 ```bash
 az acr run \
-  --registry crrgomeslab01 \
+  --registry crrgomesdev01 \
   --cmd "--entrypoint java \$Registry/lab/azure-acr:0.0.0-SNAPSHOT --version" \
   /dev/null
 ```

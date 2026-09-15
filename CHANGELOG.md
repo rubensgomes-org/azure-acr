@@ -43,7 +43,7 @@ and one that still holds only the empty `### Added` / `### Changed` /
 - `Dockerfile` and `docker-compose.yml` for building and running the service
   as a container locally.
 - GitHub Actions workflows: `build-verify`, `release`, `acr-build-deploy`, and
-  `acr-repo-delete`.
+  `acr-repo-delete`, targeting the `crrgomesdev01` registry.
 - Gradle build with dependency locking, Maven publishing, the
   `net.researchgate.release` flow, and the SonarCloud quality gate.
 - Documentation: `INITIAL_SETUP`, `DEVELOPMENT_WORKFLOW`, and `ACR`.
