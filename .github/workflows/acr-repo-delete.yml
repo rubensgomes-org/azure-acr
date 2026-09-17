@@ -32,9 +32,11 @@ on:
         description: >
           EVERY TAG AND MANIFEST IN THE REPOSITORY IS DELETED PERMANENTLY.
           There is no soft-delete and no recycle bin. Push anything you care
-          about elsewhere first. Check this box to confirm.
+          about elsewhere first. Type exactly: DELETE REPO <registry_name>
+          <environment>/azure-acr (e.g. DELETE REPO crrgomesdev01
+          dev/azure-acr).
         required: true
-        type: boolean
+        type: string
 
 permissions:
   contents: read
