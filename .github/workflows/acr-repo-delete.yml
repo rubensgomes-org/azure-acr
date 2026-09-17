@@ -50,9 +50,7 @@ jobs:
       environment: ${{ inputs.environment }}
       registry-name: ${{ inputs.registry_name }}
       artifact-id: azure-acr
-      confirm: >-
-        ${{ inputs.confirm && format('DELETE REPO {0} {1}/azure-acr',
-        inputs.registry_name, inputs.environment) || '' }}
+      confirm: ${{ inputs.confirm && format('DELETE REPO {0} {1}/azure-acr', inputs.registry_name, inputs.environment) || '' }}
       azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
       azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
       azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
