@@ -30,6 +30,9 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Added
 
+- `acr-repo-delete.yml` now requires a `confirm` checkbox input, gating the
+  `delete` job, before it will run.
+
 ### Changed
 
 - `acr-repo-delete.yml` now passes `artifact-id: azure-acr` to the reusable
