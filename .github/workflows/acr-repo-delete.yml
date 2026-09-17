@@ -49,6 +49,7 @@ jobs:
     with:
       environment: ${{ inputs.environment }}
       registry-name: ${{ inputs.registry_name }}
+      artifact-id: azure-acr
       confirm: ${{ inputs.confirm }}
       azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
       azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}

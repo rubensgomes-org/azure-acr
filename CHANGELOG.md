@@ -32,6 +32,10 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Changed
 
+- `acr-repo-delete.yml` now passes `artifact-id: azure-acr` to the reusable
+  `acr-repo-delete` workflow, which requires it as an input instead of
+  reading `app/gradle.properties`.
+
 ### Fixed
 
 ## [0.0.5] - 2026-09-17
