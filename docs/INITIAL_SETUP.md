@@ -41,6 +41,18 @@ The workflows in this repository read an Action secret named
    Repo's Settings -- Secrets and variables -- Actions -- New repository secret
    ```
 
+### SONAR_TOKEN
+
+The workflows in this repository read an Action secret named
+`SONAR_TOKEN` which is used during SonarQube analysis.
+
+- Create an Action repository secret in this repository and name it
+  SONAR_TOKEN storing the SonarQube authentication token:
+
+   ```text
+   Repo's Settings -- Secrets and variables -- Actions -- New repository secret
+   ```
+
 ## GitHub Actions Variables
 
 ### AZURE_CLIENT_ID

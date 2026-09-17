@@ -36,11 +36,6 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
 
     steps:
-      # PINNED TO A COMMIT SHA, NOT A TAG
-      #
-      # The risk: a tag is a mutable pointer. Whoever owns the action can move
-      # v7.0.1 onto any commit at any time, and every workflow naming that tag
-      # silently runs the new code on its next run.
       - name: Check out the repository
         uses: actions/checkout@v7
 
@@ -151,7 +146,6 @@ jobs:
       VERSION: ${{ needs.plan.outputs.version }}
 
     steps:
-      # SHA-pinned security reasons
       - name: Check out the release tag
         uses: actions/checkout@v7
         with:

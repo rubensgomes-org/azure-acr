@@ -81,7 +81,7 @@ library or framework version requires regenerating the lock files.
 ### Common commands
 
 | Command                                              | Purpose                                              |
-|-------------------------------------------------------|-------------------------------------------------------|
+|------------------------------------------------------|------------------------------------------------------|
 | `./gradlew bootRun`                                  | Run locally on port 8080                             |
 | `./gradlew test`                                     | Run the suite; coverage report always follows        |
 | `./gradlew build`                                    | Format check + tests + coverage gate + all artifacts |

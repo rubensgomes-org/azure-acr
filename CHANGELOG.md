@@ -30,6 +30,12 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Added
 
+- `scripts/initvars.sh` to reset this repository's Actions variables
+  (`AZURE_CLIENT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`) and secrets
+  (`RUBENS_PAT_TOKEN`, `AZURE_CLIENT_SECRET`, `SONAR_TOKEN`) from the current
+  shell environment.
+- Document `SONAR_TOKEN` in `docs/INITIAL_SETUP.md`.
+
 ### Changed
 
 ### Fixed
