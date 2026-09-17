@@ -30,6 +30,14 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.6] - 2026-09-17
+
+### Added
+
 - `acr-repo-delete.yml` now requires a `confirm` checkbox input, gating the
   `delete` job, before it will run.
 
