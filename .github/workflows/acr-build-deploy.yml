@@ -44,11 +44,14 @@ concurrency:
 
 jobs:
   build:
-    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-deploy.yml@v0
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-deploy-java.yml@v0
     with:
       environment: ${{ inputs.environment }}
       tag: ${{ inputs.tag }}
       registry-name: ${{ inputs.registry_name }}
+      artifact-id: azure-acr
+      java-version: '25'
+      java-distribution: microsoft
       azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
       azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
       azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
