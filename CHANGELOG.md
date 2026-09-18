@@ -32,6 +32,10 @@ and one that still holds only the empty `### Added` / `### Changed` /
 
 ### Changed
 
+- `acr-build-deploy.yml` now calls the renamed `acr-build-deploy-java`
+  reusable workflow and passes `artifact-id: azure-acr`, `java-version`, and
+  `java-distribution` inputs it requires.
+
 ### Fixed
 
 ## [0.0.6] - 2026-09-17
