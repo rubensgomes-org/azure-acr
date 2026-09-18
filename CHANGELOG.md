@@ -28,6 +28,14 @@ rename.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.7] - 2026-09-18
+
+### Added
+
 - `release.yml`'s `plan` job now renames `[Unreleased]` to the release
   version and commits a fresh empty `[Unreleased]` to `main` itself, so
   that step no longer needs to be done manually before running the
