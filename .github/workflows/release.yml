@@ -3,8 +3,9 @@
 #
 # Cuts a release and publishes it. One workflow, three jobs:
 #
-#   plan     resolve the version and tag, and prove CHANGELOG.md has a
-#            matching section
+#   plan     resolve the version and tag, rename CHANGELOG.md's
+#            [Unreleased] section to it, and prove that section is not
+#            empty
 #   cut      ./gradlew release: commit, tag, push, bump
 #   publish  turn the tag into a GitHub Release
 #
@@ -81,6 +82,67 @@ jobs:
           echo "Tag     : ${tag}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}"         >> "$GITHUB_OUTPUT"
+
+      # Automates the manual step documented in CHANGELOG.md: renaming
+      # [Unreleased] to the version being released and pushing a fresh empty
+      # [Unreleased] above it, so a release run no longer needs a prior
+      # manual commit.
+      - name: Rename [Unreleased] to the release version
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Rename [Unreleased] to the release version"
+          echo "=============================================================="
+          set -euo pipefail
+
+          if grep -q "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "CHANGELOG.md already has a '## [${VERSION}]' section;" \
+                 "leaving it as-is."
+            exit 0
+          fi
+
+          unreleased="$(awk '
+            $0 == "## [Unreleased]" { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md)"
+
+          if ! printf '%s\n' "$unreleased" \
+              | grep -qE '^[[:space:]]*[^[:space:]#]'; then
+            echo "::error::CHANGELOG.md's '[Unreleased]' section is empty --" \
+                 "nothing to rename."
+            echo "Write what changed under it, commit, then re-run." >&2
+            exit 1
+          fi
+
+          release_date="$(date -u +%Y-%m-%d)"
+
+          awk -v ver="${VERSION}" -v rdate="${release_date}" '
+            $0 == "## [Unreleased]" {
+              print "## [Unreleased]"
+              print ""
+              print "### Added"
+              print ""
+              print "### Changed"
+              print ""
+              print "### Fixed"
+              print ""
+              print "## [" ver "] - " rdate
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.md.new
+          mv CHANGELOG.md.new CHANGELOG.md
+
+          name="$(sed -n 's/^developerName=//p'  gradle.properties)"
+          email="$(sed -n 's/^developerEmail=//p' gradle.properties)"
+          git config user.name  "$name"
+          git config user.email "$email"
+          git add CHANGELOG.md
+          git commit -m "docs: release ${VERSION} changelog section"
+          git push origin HEAD:main
 
       # The whole reason this job exists. See the header.
       - name: Verify the CHANGELOG section exists and is not empty

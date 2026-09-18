@@ -15,20 +15,23 @@ cut.
 The `net.researchgate.release` plugin commits the release version, tags *that*
 commit, then bumps to the next snapshot. So the order is:
 
-1. Rename `[Unreleased]` to the version being released, and add a fresh empty
-   `[Unreleased]` above it.
-2. Write what changed under it.
-3. Commit and push that change to `main`.
-4. Run the `release` workflow.
+1. Write what changed under `[Unreleased]`, commit, and push to `main`.
+2. Run the `release` workflow.
 
-The workflow's `plan` job enforces this before anything is written, so getting
-it wrong costs a failed run and nothing else. It rejects both a missing section
-and one that still holds only the empty `### Added` / `### Changed` /
-`### Fixed` skeleton.
+Its `plan` job renames `[Unreleased]` to the version being released, adds a
+fresh empty `[Unreleased]` above it, and pushes that change to `main` itself.
+It rejects an `[Unreleased]` section that still holds only the empty
+`### Added` / `### Changed` / `### Fixed` skeleton, since there is nothing to
+rename.
 
 ## [Unreleased]
 
 ### Added
+
+- `release.yml`'s `plan` job now renames `[Unreleased]` to the release
+  version and commits a fresh empty `[Unreleased]` to `main` itself, so
+  that step no longer needs to be done manually before running the
+  workflow.
 
 ### Changed
 
