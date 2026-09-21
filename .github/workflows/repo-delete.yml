@@ -1,5 +1,5 @@
 # =============================================================================
-# acr-repo-delete (azure-acr)
+# repo-delete (azure-acr)
 #
 # DESTRUCTIVE. Deletes an entire repository -- every tag and every manifest --
 # from an Azure Container Registry.
@@ -9,7 +9,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: acr-repo-delete (azure-acr)
+name: repo-delete (azure-acr)
 
 on:
   workflow_dispatch:
@@ -40,7 +40,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: acr-repo-delete
+  group: repo-delete
   cancel-in-progress: false
 
 jobs:
