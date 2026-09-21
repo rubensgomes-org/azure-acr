@@ -91,7 +91,7 @@ library or framework version requires regenerating the lock files.
 | `./gradlew :app:dependencies --write-locks`          | Regenerate the `:app` dependency lock files          |
 | `gh workflow run build-verify.yml -f run-sonar=true` | Run the build in CI, with the Sonar gate             |
 | `gh workflow run release.yml`                        | Cut a release: check changelog, tag, publish Release |
-| `gh workflow run acr-build-deploy.yml`               | Build and push the image to ACR                      |
+| `gh workflow run build-deploy.yml`                   | Build and push the image to ACR                      |
 | `docker compose up --build -d`                       | Build and run the image — `./gradlew build` first    |
 | `docker compose down`                                | Stop and remove the container                        |
 

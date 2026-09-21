@@ -31,6 +31,7 @@ rename.
 ### Changed
 
 - Renamed `acr-repo-delete.yml` workflow to `repo-delete.yml`.
+- Renamed `acr-build-deploy.yml` workflow to `build-deploy.yml`.
 
 ### Fixed
 

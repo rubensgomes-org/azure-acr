@@ -1,5 +1,5 @@
 # =============================================================================
-# acr-build-deploy (azure-acr)
+# build-deploy
 #
 # Builds the application and its container image, pushes the image to an
 # EXISTING Azure Container Registry, verifies the push, smoke-tests the image
@@ -13,7 +13,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: acr-build-deploy (azure-acr)
+name: build-deploy
 
 on:
   workflow_dispatch:
@@ -39,7 +39,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: acr-build-deploy
+  group: build-deploy
   cancel-in-progress: false
 
 jobs:
