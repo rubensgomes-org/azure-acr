@@ -21,13 +21,6 @@ on:
         options:
           - dev
           - lab
-      registry_name:
-        description: 'Name of the EXISTING Azure Container Registry to delete from (not the login server).'
-        required: true
-        type: choice
-        options:
-          - crrgomesdev01
-          - crrgomeslab02
       confirm:
         description: >
           EVERY TAG AND MANIFEST IN THE REPOSITORY IS DELETED PERMANENTLY.
@@ -44,12 +37,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  registry:
+    runs-on: ubuntu-latest
+    outputs:
+      registry-name: ${{ steps.registry.outputs.registry-name }}
+    steps:
+      - name: Resolve the registry name
+        id: registry
+        run: |
+          echo "=============================================================="
+          echo " STEP: Resolve the registry name"
+          echo "=============================================================="
+          set -euo pipefail
+          case "${{ inputs.environment }}" in
+            dev) echo "registry-name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
+            lab) echo "registry-name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
+          esac
+
   delete:
+    needs: registry
     if: ${{ inputs.confirm }}
     uses: rubensgomes-org/azure-workflows/.github/workflows/acr-repo-delete.yml@v0
     with:
       environment: ${{ inputs.environment }}
-      registry-name: ${{ inputs.registry_name }}
+      registry-name: ${{ needs.registry.outputs.registry-name }}
       artifact-id: azure-acr
       azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
       azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}

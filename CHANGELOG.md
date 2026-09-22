@@ -28,7 +28,15 @@ rename.
 
 ### Added
 
+- `acr-create` and `acr-destroy` workflows that provision and destroy the
+  environment's registry via `azure-iac`.
+
 ### Changed
+
+- **Breaking:** `build-deploy` and `repo-delete` no longer take a
+  `registry_name` input; the registry is derived from `environment`
+  (`dev` → `crrgomesdev01`, `lab` → `crrgomeslab02`). `build-deploy`'s
+  `environment` is now a `dev`/`lab` dropdown.
 
 ### Fixed
 

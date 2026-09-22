@@ -1,0 +1,66 @@
+# =============================================================================
+# acr-destroy
+#
+# DESTRUCTIVE. Destroys the Azure Container Registry for the chosen
+# environment, and every image in it, by calling the reusable ACR Destroy
+# workflow in the Terraform IaC `azure-iac` repo. The shared managed identity
+# and the resource groups are left standing.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: acr-destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'Estate environment holding the registry.'
+        required: true
+        type: choice
+        options:
+          - dev
+          - lab
+      confirm:
+        description: >
+          DESTROYS THE REGISTRY AND EVERY IMAGE, TAG AND MANIFEST IN IT.
+          There is no recycle bin and no soft-delete. The managed identity
+          and resource groups are NOT touched. Choose "Yes" to confirm.
+        required: true
+        type: choice
+        default: "No"
+        options:
+          - "No"
+          - "Yes"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acr-destroy
+  cancel-in-progress: false
+
+jobs:
+  resolve-acr:
+    runs-on: ubuntu-latest
+    outputs:
+      acr_name: ${{ steps.resolve.outputs.acr_name }}
+    steps:
+      - id: resolve
+        run: |
+          case "${{ inputs.environment_name }}" in
+            dev) echo "acr_name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
+            lab) echo "acr_name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  destroy:
+    needs: resolve-acr
+    uses: rubensgomes-org/azure-iac/.github/workflows/acr-destroy.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      acr_name: ${{ needs.resolve-acr.outputs.acr_name }}
+      confirm: ${{ inputs.confirm }}
+    secrets:
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}

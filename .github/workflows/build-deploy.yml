@@ -22,18 +22,14 @@ on:
         description: 'Image namespace, used as <environment>/<artifactId>:<tag>.'
         required: false
         default: dev
-        type: string
+        type: choice
+        options:
+          - dev
+          - lab
       tag:
         description: 'Image tag. Empty defaults to the application version (APP_VERSION in .env).'
         required: false
         type: string
-      registry_name:
-        description: 'Name of the EXISTING Azure Container Registry to push to (not the login server).'
-        required: true
-        type: choice
-        options:
-          - crrgomesdev01
-          - crrgomeslab02
 
 permissions:
   contents: read
@@ -43,12 +39,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  registry:
+    runs-on: ubuntu-latest
+    outputs:
+      registry-name: ${{ steps.registry.outputs.registry-name }}
+    steps:
+      - name: Resolve the registry name
+        id: registry
+        run: |
+          echo "=============================================================="
+          echo " STEP: Resolve the registry name"
+          echo "=============================================================="
+          set -euo pipefail
+          case "${{ inputs.environment }}" in
+            dev) echo "registry-name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
+            lab) echo "registry-name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
+          esac
+
   build:
+    needs: registry
     uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-deploy-java.yml@v0
     with:
       environment: ${{ inputs.environment }}
       tag: ${{ inputs.tag }}
-      registry-name: ${{ inputs.registry_name }}
+      registry-name: ${{ needs.registry.outputs.registry-name }}
       artifact-id: azure-acr
       java-version: '25'
       java-distribution: microsoft

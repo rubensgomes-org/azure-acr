@@ -47,6 +47,8 @@ Follow the instructions in [INITIAL_SETUP](docs/INITIAL_SETUP.md).
 | `release.yml`          | Cuts a release: commits, tags, pushes, bumps, and publishes a GitHub Release            |
 | `build-deploy.yml`     | Builds the container image and pushes it to an existing Azure Container Registry        |
 | `repo-delete.yml`      | **Destructive.** Deletes an entire repository from an Azure Container Registry          |
+| `acr-create.yml`       | Provisions the environment's Azure Container Registry via `azure-iac`                   |
+| `acr-destroy.yml`      | **Destructive.** Destroys the environment's Azure Container Registry via `azure-iac`    |
 
 ## Development Workflow
 
