@@ -58,7 +58,7 @@ jobs:
 
   build:
     needs: registry
-    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-deploy-java.yml@v0
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-push-java.yml@v0
     with:
       environment: ${{ inputs.environment }}
       tag: ${{ inputs.tag }}

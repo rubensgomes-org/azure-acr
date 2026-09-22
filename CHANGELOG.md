@@ -38,6 +38,8 @@ rename.
 
 - `acr-create` and `acr-destroy` workflows that provision and destroy the
   environment's registry via `azure-iac`.
+- `scripts/initvars.sh` now sets the `TF_VAR_*` Action variables those
+  workflows require.
 
 ### Changed
 
@@ -47,6 +49,9 @@ rename.
   `environment` is now a `dev`/`lab` dropdown.
 
 ### Fixed
+
+- `build-deploy` now calls the renamed `acr-build-push-java` reusable
+  workflow; `acr-build-deploy-java` no longer exists at `@v0`.
 
 ## [0.0.8] - 2026-09-21
 
