@@ -28,6 +28,14 @@ rename.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.10] - 2026-09-22
+
+### Added
+
 - `scripts/initvars.sh` now sets the `TF_VAR_*` Action variables the
   `acr-create` and `acr-destroy` workflows require.
 
