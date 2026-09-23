@@ -28,6 +28,9 @@ rename.
 
 ### Added
 
+- `.github/dependabot.yml`: daily Dependabot updates for Gradle, GitHub
+  Actions, Docker, and Docker Compose dependencies.
+
 ### Changed
 
 ### Fixed
