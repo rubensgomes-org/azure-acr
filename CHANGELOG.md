@@ -38,6 +38,7 @@ rename.
 
 - `scripts/initvars.sh` now sets the `TF_VAR_*` Action variables the
   `acr-create` and `acr-destroy` workflows require.
+- Dependabot daily updates for Gradle, GitHub Actions, and Docker.
 
 ### Changed
 
