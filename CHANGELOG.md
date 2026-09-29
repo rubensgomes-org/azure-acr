@@ -30,6 +30,8 @@ rename.
 
 ### Changed
 
+- Gradle wrapper bumped from 9.7.1 to 9.8.0.
+
 ### Fixed
 
 ## [0.0.11] - 2026-09-23
