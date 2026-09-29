@@ -1,8 +1,9 @@
 # =============================================================================
 # release
 #
-# Cuts a release and publishes it. One workflow, three jobs:
+# Cuts a release and publishes it. One workflow, four jobs:
 #
+#   verify   the same steps as build-verify
 #   plan     resolve the version and tag, rename CHANGELOG.md's
 #            [Unreleased] section to it, and prove that section is not
 #            empty
@@ -18,6 +19,12 @@ name: release
 
 on:
   workflow_dispatch:
+    inputs:
+      run-sonar:
+        description: 'Run the SonarCloud analysis and quality gate.'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -27,8 +34,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    name: verify
+    uses: rubensgomes-org/azure-workflows/.github/workflows/gradle-build-verify.yml@v0
+    with:
+      run-sonar: ${{ inputs.run-sonar }}
+    secrets:
+      packages-token: ${{ secrets.RUBENS_PAT_TOKEN }}
+      sonar-token: ${{ secrets.SONAR_TOKEN }}
+
   plan:
     name: plan
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

@@ -42,6 +42,8 @@ rename.
 ### Changed
 
 - Gradle wrapper bumped from 9.7.1 to 9.8.0.
+- `release` workflow runs the `build-verify` steps before releasing, with an
+  optional `run-sonar` input.
 
 ### Fixed
 
