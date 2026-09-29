@@ -28,6 +28,9 @@ rename.
 
 ### Added
 
+- MIT `LICENSE` file.
+- README badges, and License and Links sections.
+
 ### Changed
 
 - Gradle wrapper bumped from 9.7.1 to 9.8.0.

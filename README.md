@@ -1,9 +1,14 @@
-[![AI Assisted](https://img.shields.io/badge/AI--Assisted-Development-007ACC?logo=openai&logoColor=white)](./AI_DISCLAIMER.md)
-
 # azure-acr
+
+[![Java](https://img.shields.io/badge/Java-JDK%2025-0969da?logo=java)](https://openjdk.org/projects/jdk/25/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1%2B-0969da?logo=spring)](https://spring.io/projects/spring-boot#overview)
+[![AI Assisted](https://img.shields.io/badge/AI%20Assisted-Development-d29922)](https://github.com/rubensgomes-org/azure-acr/blob/main/AI_DISCLAIMER.md)
+[![License](https://img.shields.io/badge/License-MIT-0969da)](https://github.com/rubensgomes-org/azure-acr/blob/main/LICENSE)
 
 Spring Boot demo that builds and publishes its container image to Azure
 Container Registry.
+
+---
 
 ## AI Disclaimer
 
@@ -25,7 +30,6 @@ The following prerequisites are required:
 - An Azure RBAC role that allows you to create the resources, such as resource
   groups, container registry, container apps, and databases.
 - GitHub account
-- UNIX-based operating system (for example, AIX, Linux, macOS, or Solaris)
 - Azure CLI 2.90+
 - GitHub CLI (`gh`) 2.99+
 - Git 2.55+
@@ -54,6 +58,19 @@ Follow the instructions in [INITIAL_SETUP](docs/INITIAL_SETUP.md).
 
 See [DEVELOPMENT_WORKFLOW](./docs/DEVELOPMENT_WORKFLOW.md) for guidance on
 developing, and cutting a release on this project.
+
+## License
+
+The project is licensed under
+[MIT License](https://github.com/rubensgomes-org/azure-acr/blob/main/LICENSE).
+
+## Links
+
+- [GitHub Project](https://github.com/rubensgomes-org/azure-acr)
+- [Azure Container Registry](https://github.com/rubensgomes-org/azure-acr/blob/main/docs/ACR.md)
+- [Development Workflow](https://github.com/rubensgomes-org/azure-acr/blob/main/docs/DEVELOPMENT_WORKFLOW.md)
+- [Initial Setup](https://github.com/rubensgomes-org/azure-acr/blob/main/docs/INITIAL_SETUP.md)
+
 
 ---
 Author:  [Rubens Gomes](https://rubensgomes.com/)
