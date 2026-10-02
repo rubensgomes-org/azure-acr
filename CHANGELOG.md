@@ -28,6 +28,14 @@ rename.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.13] - 2026-10-02
+
+### Added
+
 - README badges for Gradle, GitHub Actions, and Azure.
 - `AI_DISCLAIMER.md` third-party, copyright, and liability notices.
 
