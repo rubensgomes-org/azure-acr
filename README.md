@@ -1,4 +1,4 @@
-# azure-acr
+# Azure Container Registry
 
 [![jdk](https://img.shields.io/badge/jdk-25-0969da?logo=openjdk)](https://openjdk.org/projects/jdk/25/)
 [![gradle](https://img.shields.io/badge/gradle-9.8%2B-0969da?logo=gradle)](https://gradle.org/)
