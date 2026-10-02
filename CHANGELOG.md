@@ -28,9 +28,16 @@ rename.
 
 ### Added
 
+- README badges for Gradle, GitHub Actions, and Azure.
+- `AI_DISCLAIMER.md` third-party, copyright, and liability notices.
+
 ### Changed
 
+- README JDK, AI, and License badges restyled.
+
 ### Fixed
+
+- README Gradle prerequisite version (9.8.0+) and wording.
 
 ## [0.0.12] - 2026-09-29
 

@@ -1,9 +1,12 @@
 # azure-acr
 
-[![Java](https://img.shields.io/badge/Java-JDK%2025-0969da?logo=java)](https://openjdk.org/projects/jdk/25/)
+[![jdk](https://img.shields.io/badge/jdk-25-0969da?logo=openjdk)](https://openjdk.org/projects/jdk/25/)
+[![gradle](https://img.shields.io/badge/gradle-9.8%2B-0969da?logo=gradle)](https://gradle.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1%2B-0969da?logo=spring)](https://spring.io/projects/spring-boot#overview)
-[![AI Assisted](https://img.shields.io/badge/AI%20Assisted-Development-d29922)](https://github.com/rubensgomes-org/azure-acr/blob/main/AI_DISCLAIMER.md)
-[![License](https://img.shields.io/badge/License-MIT-0969da)](https://github.com/rubensgomes-org/azure-acr/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-Actions-0969da?logo=github+actions)](https://github.com/features/actions)
+[![Microsoft](https://img.shields.io/badge/Microsoft-Azure-0969da)](https://azure.microsoft.com/en-us)
+[![AI](https://img.shields.io/badge/AI-Assisted-d29922?logo=claude+code)](https://github.com/rubensgomes-org/azure-acr/blob/main/AI_DISCLAIMER.md)
+[![license](https://img.shields.io/badge/license-MIT-1a7f37)](https://github.com/rubensgomes-org/azure-acr/blob/main/LICENSE)
 
 Spring Boot demo that builds and publishes its container image to Azure
 Container Registry.
@@ -21,21 +24,21 @@ the [AI_DISCLAIMER](./AI_DISCLAIMER.md).
 To use this project, ensure that your environment is properly configured and
 that the required tools are installed.
 
-## Prerequisites
+### Prerequisites
 
 The following prerequisites are required:
 
 - Microsoft Azure account
 - An active Azure subscription
-- An Azure RBAC role that allows you to create the resources, such as resource
-  groups, container registry, container apps, and databases.
+- An Azure RBAC role that allows you to create resources such as resource
+  groups, container registries, container apps, and databases.
 - GitHub account
 - Azure CLI 2.90+
 - GitHub CLI (`gh`) 2.99+
 - Git 2.55+
 - GNU Make 3.8+
-- gradle 9.7.1+
-- java 25+
+- Gradle 9.8.0+
+- Java 25+
 - Spring Boot 4.1+
 - Docker Desktop 4.87+
 
@@ -57,11 +60,11 @@ Follow the instructions in [INITIAL_SETUP](docs/INITIAL_SETUP.md).
 ## Development Workflow
 
 See [DEVELOPMENT_WORKFLOW](./docs/DEVELOPMENT_WORKFLOW.md) for guidance on
-developing, and cutting a release on this project.
+developing and cutting a release on this project.
 
 ## License
 
-The project is licensed under
+The project is licensed under the
 [MIT License](https://github.com/rubensgomes-org/azure-acr/blob/main/LICENSE).
 
 ## Links
@@ -71,6 +74,5 @@ The project is licensed under
 - [Development Workflow](https://github.com/rubensgomes-org/azure-acr/blob/main/docs/DEVELOPMENT_WORKFLOW.md)
 - [Initial Setup](https://github.com/rubensgomes-org/azure-acr/blob/main/docs/INITIAL_SETUP.md)
 
-
 ---
-Author:  [Rubens Gomes](https://rubensgomes.com/)
+Author: [Rubens Gomes](https://rubensgomes.com/)
