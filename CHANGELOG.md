@@ -32,6 +32,8 @@ rename.
 
 ### Fixed
 
+- Grammar in `AI_DISCLAIMER.md` and `README.md`.
+
 ## [0.0.13] - 2026-10-02
 
 ### Added

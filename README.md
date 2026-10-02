@@ -60,11 +60,11 @@ Follow the instructions in [INITIAL_SETUP](docs/INITIAL_SETUP.md).
 ## Development Workflow
 
 See [DEVELOPMENT_WORKFLOW](./docs/DEVELOPMENT_WORKFLOW.md) for guidance on
-developing and cutting a release on this project.
+developing and cutting a release for this project.
 
 ## License
 
-The project is licensed under the
+This project is licensed under the
 [MIT License](https://github.com/rubensgomes-org/azure-acr/blob/main/LICENSE).
 
 ## Links
