@@ -15,7 +15,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: release
+name: Release to GitHub
 
 on:
   workflow_dispatch:
