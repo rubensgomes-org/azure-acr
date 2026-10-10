@@ -38,6 +38,8 @@ rename.
   the `azure-workflows` reusable workflows at `@v0` now require.
 - Workflows renamed to "Build and Deploy to ACR" and "Delete Repo and
   Destroy ACR", and every job now has a descriptive name.
+- `build-verify` renamed to "Gradle Build and Verify" and now also runs on
+  push; the SonarCloud gate still runs only when dispatched with `run-sonar`.
 - `scripts/initvars.sh` now also sets `TF_VAR_WORKLOAD` and `TF_VAR_OWNER`,
   defaulting to `azure-iac`'s values.
 
