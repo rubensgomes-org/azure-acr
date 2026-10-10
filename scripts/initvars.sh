@@ -111,6 +111,9 @@ declare -Ar ACTION_VARIABLES=(
 "${TF_VAR_backend_resource_group_name:-}"
   [TF_VAR_STORAGE_ACCOUNT_ID]="${TF_VAR_storage_account_id:-}"
   [TF_VAR_CONTAINER_NAME]="${TF_VAR_container_name:-}"
+  [TF_VAR_WORKLOAD]="${TF_VAR_workload:-rgomes}"
+  [TF_VAR_OWNER]=\
+"${TF_VAR_owner:-rubens.gomes@3cloudsolutions.com}"
 )
 
 # Presentation order. Mirrors docs/INITIAL_SETUP.md so a reader can
@@ -123,6 +126,8 @@ declare -ar ACTION_VARIABLE_ORDER=(
   TF_VAR_BACKEND_RESOURCE_GROUP_NAME
   TF_VAR_STORAGE_ACCOUNT_ID
   TF_VAR_CONTAINER_NAME
+  TF_VAR_WORKLOAD
+  TF_VAR_OWNER
 )
 
 # Variables this script used to manage and no longer does. The

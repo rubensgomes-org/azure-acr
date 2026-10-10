@@ -93,10 +93,10 @@ The workflows in this repository read an Action variable named
 
 ### Terraform Variables
 
-The `acr-create` and `acr-destroy` workflows pass these Action variables to
+The `build-deploy` and `acr-destroy` workflows pass these Action variables to
 the Terraform IaC `azure-iac` repo. Use the same values as that repo.
-`scripts/initvars.sh` sets the required ones from the matching lowercase
-shell variables (e.g., `TF_VAR_location`).
+`scripts/initvars.sh` sets them from the matching lowercase shell
+variables (e.g., `TF_VAR_location`).
 
 | Variable                             | Value                             |
 |--------------------------------------|-----------------------------------|
@@ -104,8 +104,8 @@ shell variables (e.g., `TF_VAR_location`).
 | `TF_VAR_BACKEND_RESOURCE_GROUP_NAME` | State resource group              |
 | `TF_VAR_STORAGE_ACCOUNT_ID`          | State storage account             |
 | `TF_VAR_CONTAINER_NAME`              | State blob container              |
-| `TF_VAR_WORKLOAD`                    | Optional; defaults to `rgomes`    |
-| `TF_VAR_OWNER`                       | Optional; defaults to `tags.json` |
+| `TF_VAR_WORKLOAD`                    | Defaults to `rgomes`              |
+| `TF_VAR_OWNER`                       | Defaults to `azure-iac`'s owner   |
 
 ## GitHub Environment
 

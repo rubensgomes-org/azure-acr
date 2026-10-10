@@ -1,17 +1,17 @@
 # =============================================================================
-# acr-destroy
+# Delete Repo and Destroy ACR
 #
-# DESTRUCTIVE. Destroys the Azure Container Registry for the chosen
-# environment, and every image in it, by calling the reusable ACR Destroy
-# workflow in the Terraform IaC `azure-iac` repo. The shared managed identity
-# and the resource groups are left standing.
+# DESTRUCTIVE. Deletes the app's ACR repository, then destroys the Azure
+# Container Registry, and every image in it, by calling the reusable ACR
+# Destroy workflow in the Terraform IaC `azure-iac` repo. The shared managed
+# identity and the resource groups are left standing.
 #
 # This project's source code and documentation were generated with the
 # assistance of Artificial Intelligence (AI). For more information, please
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: acr-destroy
+name: Delete Repo and Destroy ACR
 
 on:
   workflow_dispatch:
@@ -25,9 +25,10 @@ on:
           - lab
       confirm:
         description: >
-          DESTROYS THE REGISTRY AND EVERY IMAGE, TAG AND MANIFEST IN IT.
-          There is no recycle bin and no soft-delete. The managed identity
-          and resource groups are NOT touched. Choose "Yes" to confirm.
+          DESTROYS THE APP'S ACR REPOSITORY AND THE REGISTRY, WITH EVERY
+          IMAGE, TAG AND MANIFEST IN IT. There is no recycle bin and no
+          soft-delete. The managed identity and resource groups are NOT
+          touched. Choose "Yes" to confirm.
         required: true
         type: choice
         default: "No"
@@ -44,19 +45,45 @@ concurrency:
 
 jobs:
   resolve-acr:
+    name: Resolve the ACR registry name
     runs-on: ubuntu-latest
     outputs:
       acr_name: ${{ steps.resolve.outputs.acr_name }}
     steps:
       - id: resolve
+        env:
+          ENVIRONMENT_NAME: ${{ inputs.environment_name }}
         run: |
-          case "${{ inputs.environment_name }}" in
-            dev) echo "acr_name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
-            lab) echo "acr_name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
+          set -euo pipefail
+          case "$ENVIRONMENT_NAME" in
+            dev) acr_name=crrgomesdev01 ;;
+            lab) acr_name=crrgomeslab02 ;;
+            *)
+              echo "Unknown environment: '${ENVIRONMENT_NAME}'." >&2
+              exit 1
+              ;;
           esac
+          echo "acr_name=${acr_name}" >> "$GITHUB_OUTPUT"
+          echo "Resolved acr_name: ${acr_name}"
 
-  destroy:
+  delete-acr-repo:
+    name: Delete ACR repository
     needs: resolve-acr
+    if: ${{ inputs.confirm == 'Yes' }}
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-repo-delete.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      registry-name: ${{ needs.resolve-acr.outputs.acr_name }}
+      artifact-id: azure-acr
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+  destroy-acr:
+    name: Destroy the ACR registry
+    needs: [resolve-acr, delete-acr-repo]
     uses: rubensgomes-org/azure-iac/.github/workflows/acr-destroy.yml@v0
     with:
       environment_name: ${{ inputs.environment_name }}

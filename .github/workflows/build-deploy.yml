@@ -1,24 +1,23 @@
 # =============================================================================
-# build-deploy
+# Build and Deploy to ACR
 #
-# Builds the application and its container image, pushes the image to an
-# EXISTING Azure Container Registry, verifies the push, smoke-tests the image
-# and purges the untagged manifests it orphaned.
-#
-# The EXISTING Azure Container Registry is expected to be provisioned using
-# one of the workflows in the Terraform IaC `azure-iac` repo.
+# Provisions the environment's Azure Container Registry via the `azure-iac`
+# repo's `acr-create.yml` workflow when it does not exist. Then builds the
+# application and its container image, pushes the image to the ACR, verifies
+# the push, smoke-tests the image and purges the untagged manifests it
+# orphaned.
 #
 # This project's source code and documentation were generated with the
 # assistance of Artificial Intelligence (AI). For more information, please
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: build-deploy
+name: Build and Deploy to ACR
 
 on:
   workflow_dispatch:
     inputs:
-      environment:
+      environment_name:
         description: 'Image namespace, used as <environment>/<artifactId>:<tag>.'
         required: false
         default: dev
@@ -39,30 +38,86 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  registry:
+  resolve-acr:
+    name: Resolve the ACR registry name
     runs-on: ubuntu-latest
     outputs:
-      registry-name: ${{ steps.registry.outputs.registry-name }}
+      acr_name: ${{ steps.resolve.outputs.acr_name }}
     steps:
-      - name: Resolve the registry name
-        id: registry
+      - id: resolve
+        env:
+          ENVIRONMENT_NAME: ${{ inputs.environment_name }}
+        run: |
+          set -euo pipefail
+          case "$ENVIRONMENT_NAME" in
+            dev) acr_name=crrgomesdev01 ;;
+            lab) acr_name=crrgomeslab02 ;;
+            *)
+              echo "Unknown environment: '${ENVIRONMENT_NAME}'." >&2
+              exit 1
+              ;;
+          esac
+          echo "acr_name=${acr_name}" >> "$GITHUB_OUTPUT"
+          echo "Resolved acr_name: ${acr_name}"
+
+  check-acr:
+    name: Check whether the ACR registry exists
+    needs: resolve-acr
+    runs-on: ubuntu-latest
+    outputs:
+      acr_exists: ${{ steps.check.outputs.acr_exists }}
+    steps:
+      - name: Sign in to Azure
+        uses: rubensgomes-org/azure-workflows/.github/actions/azure-login@v0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # Lists by name rather than `az acr show` so a missing registry is not
+      # an error, while Azure CLI failures still fail the job.
+      - name: Check whether the registry exists
+        id: check
+        env:
+          ACR_NAME: ${{ needs.resolve-acr.outputs.acr_name }}
         run: |
           echo "=============================================================="
-          echo " STEP: Resolve the registry name"
+          echo " STEP: Check whether the registry exists"
           echo "=============================================================="
           set -euo pipefail
-          case "${{ inputs.environment }}" in
-            dev) echo "registry-name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
-            lab) echo "registry-name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
-          esac
+          count="$(az resource list \
+            --name "$ACR_NAME" \
+            --resource-type Microsoft.ContainerRegistry/registries \
+            --query "length(@)" -o tsv)"
+          acr_exists=false
+          if [ "$count" -gt 0 ]; then
+            acr_exists=true
+          fi
+          echo "acr_exists=${acr_exists}" >> "$GITHUB_OUTPUT"
+          echo "Registry '${ACR_NAME}' exists: ${acr_exists}"
 
-  build:
-    needs: registry
+  create-acr:
+    name: Create ACR registry
+    needs: [resolve-acr, check-acr]
+    if: ${{ needs.check-acr.outputs.acr_exists != 'true' }}
+    uses: rubensgomes-org/azure-iac/.github/workflows/acr-create.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      acr_name: ${{ needs.resolve-acr.outputs.acr_name }}
+    secrets:
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+  build-push-image:
+    name: Build and push image to ACR registry
+    needs: [resolve-acr, create-acr]
+    # Runs when create-acr is skipped because the registry exists.
+    if: ${{ !failure() && !cancelled() }}
     uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-push-java.yml@v0
     with:
-      environment: ${{ inputs.environment }}
+      environment_name: ${{ inputs.environment_name }}
       tag: ${{ inputs.tag }}
-      registry-name: ${{ needs.registry.outputs.registry-name }}
+      registry-name: ${{ needs.resolve-acr.outputs.acr_name }}
       artifact-id: azure-acr
       java-version: '25'
       java-distribution: microsoft

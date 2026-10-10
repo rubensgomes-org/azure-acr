@@ -30,7 +30,21 @@ rename.
 
 ### Changed
 
+- **Breaking:** `build-deploy` now creates the environment's registry when
+  it does not exist; `acr-create` is removed.
+- **Breaking:** `acr-destroy` now also deletes the app's repository;
+  `repo-delete` is removed.
+- **Breaking:** the `environment` input is renamed to `environment_name`, as
+  the `azure-workflows` reusable workflows at `@v0` now require.
+- Workflows renamed to "Build and Deploy to ACR" and "Delete Repo and
+  Destroy ACR", and every job now has a descriptive name.
+- `scripts/initvars.sh` now also sets `TF_VAR_WORKLOAD` and `TF_VAR_OWNER`,
+  defaulting to `azure-iac`'s values.
+
 ### Fixed
+
+- Stale `artifactId` note in `app/gradle.properties`, which pointed at
+  workflow names instead of the `artifact-id:` inputs.
 
 ## [0.0.14] - 2026-10-02
 

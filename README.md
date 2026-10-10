@@ -52,10 +52,8 @@ Follow the instructions in [INITIAL_SETUP](docs/INITIAL_SETUP.md).
 |------------------------|-----------------------------------------------------------------------------------------|
 | `build-verify.yml`     | Compiles, tests, checks and assembles; optionally blocks on the SonarCloud quality gate |
 | `release.yml`          | Cuts a release: commits, tags, pushes, bumps, and publishes a GitHub Release            |
-| `build-deploy.yml`     | Builds the container image and pushes it to an existing Azure Container Registry        |
-| `repo-delete.yml`      | **Destructive.** Deletes an entire repository from an Azure Container Registry          |
-| `acr-create.yml`       | Provisions the environment's Azure Container Registry via `azure-iac`                   |
-| `acr-destroy.yml`      | **Destructive.** Destroys the environment's Azure Container Registry via `azure-iac`    |
+| `build-deploy.yml`     | Creates the environment's Azure Container Registry if absent, then pushes the image     |
+| `acr-destroy.yml`      | **Destructive.** Deletes the app's repository and destroys the registry via `azure-iac` |
 
 ## Development Workflow
 
