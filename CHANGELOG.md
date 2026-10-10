@@ -30,6 +30,14 @@ rename.
 
 ### Changed
 
+### Fixed
+
+## [0.0.15] - 2026-10-10
+
+### Added
+
+### Changed
+
 - **Breaking:** `build-deploy` now creates the environment's registry when
   it does not exist; `acr-create` is removed.
 - **Breaking:** `acr-destroy` now also deletes the app's repository;
